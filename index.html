@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mô phỏng mạng với NS-2 — Bài thuyết trình</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --panel: rgba(20, 35, 60, .72);
+    --panel-soft: rgba(20, 35, 60, .52);
+    --line: #28415f;
+    --muted: #a9bad0;
+    --slide-x: clamp(28px, 5.5vw, 96px);
+    --slide-top: clamp(28px, 5.2vh, 58px);
+    --slide-bottom: clamp(86px, 9vh, 108px);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background:var(--bg); color:#e6edf7; overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- Progress bar ---------- */
+  .progress {
+    position:fixed; top:0; left:0; right:0; height:4px;
+    background:rgba(255,255,255,.07); z-index:100;
+  }
+  .progress #bar {
+    height:100%; width:0%;
+    background:linear-gradient(90deg,#22d3ee,#3b82f6,#a855f7);
+    transition:width .3s ease;
+  }
+
+  /* ---------- Slides ---------- */
+  .slide {
+    position:fixed; inset:0;
+    padding:var(--slide-top) var(--slide-x) var(--slide-bottom);
+    overflow-y:auto; overflow-x:hidden;
+    scroll-padding-bottom:var(--slide-bottom);
+    opacity:0; visibility:hidden;
+    transform:translateY(22px);
+    transition:opacity .35s ease, transform .35s ease;
+    background:
+      radial-gradient(1100px 620px at 12% -8%, #17253f 0%, transparent 62%),
+      radial-gradient(900px 560px at 100% 108%, #16233d 0%, transparent 60%),
+      #0b1220;
+  }
+  .slide.active { opacity:1; visibility:visible; transform:none; z-index:2; }
+  .slide::-webkit-scrollbar { width:9px; }
+  .slide::-webkit-scrollbar-thumb { background:#24405f; border-radius:6px; }
+  .slide::-webkit-scrollbar-track { background:transparent; }
+
+  /* ---------- Typography ---------- */
+  h1 {
+    font-size:clamp(36px, 3.1vw, 52px); line-height:1.16; font-weight:800; letter-spacing:-.5px;
+    background:linear-gradient(90deg,#7dd3fc,#60a5fa,#c084fc);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  h2 {
+    font-size:clamp(25px, 2vw, 34px); font-weight:750; margin-bottom:clamp(16px, 2vh, 22px); padding-bottom:10px;
+    border-bottom:2px solid rgba(56,189,248,.28); letter-spacing:-.3px;
+    color:#eaf4ff; position:relative;
+  }
+  h2::after {
+    content:''; position:absolute; left:0; bottom:-2px; width:120px; height:2px;
+    background:linear-gradient(90deg,#22d3ee,#a855f7);
+  }
+  h3 {
+    font-size:clamp(18px, 1.35vw, 21px); font-weight:700; color:#7dd3fc; margin:18px 0 10px;
+  }
+  h4 { font-size:clamp(16px, 1.1vw, 18px); font-weight:700; color:#a5f3fc; margin:14px 0 8px; }
+  p { font-size:clamp(15px, 1.05vw, 17px); line-height:1.62; color:#c9d6e8; margin-bottom:12px; }
+  ul, ol { margin:8px 0 14px 22px; }
+  li { font-size:clamp(15px, 1.05vw, 17px); line-height:1.62; color:#c9d6e8; margin-bottom:6px; }
+  li::marker { color:#22d3ee; }
+  b, strong { color:#f1f7ff; }
+  em { color:#fcd34d; font-style:normal; }
+  a { color:#60a5fa; text-decoration:none; border-bottom:1px dashed #3b82f6; }
+
+  /* ---------- Code ---------- */
+  pre {
+    background:#070d18; border:1px solid #1e3350; border-left:3px solid #22d3ee;
+    border-radius:10px; padding:14px 17px; margin:12px 0 16px;
+    overflow-x:auto; font-size:clamp(12px, .82vw, 14px); line-height:1.55;
+    font-family:'JetBrains Mono','Fira Code',Consolas,monospace;
+    color:#c9e7ff;
+  }
+  pre::-webkit-scrollbar { height:8px; }
+  pre::-webkit-scrollbar-thumb { background:#1e3a5f; border-radius:5px; }
+  code {
+    font-family:'JetBrains Mono',Consolas,monospace; font-size:clamp(12px, .82vw, 14px);
+    background:#132135; color:#7dd3fc; padding:2px 7px; border-radius:5px;
+    border:1px solid #1e3350;
+  }
+  pre code { background:none; border:none; padding:0; color:inherit; font-size:inherit; }
+  .c-com { color:#5b7a9d; font-style:italic; }
+  .c-key { color:#f472b6; }
+  .c-str { color:#86efac; }
+  .c-num { color:#fcd34d; }
+  .c-var { color:#7dd3fc; }
+
+  /* ---------- Layout helpers ---------- */
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:clamp(16px, 2vw, 28px); align-items:start; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(14px, 1.6vw, 22px); align-items:start; }
+  @media (max-width:1000px){ .grid2,.grid3 { grid-template-columns:1fr; } }
+
+  .card {
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:13px; padding:clamp(15px, 1.3vw, 21px) clamp(16px, 1.5vw, 24px);
+    backdrop-filter:blur(4px);
+  }
+  .card h4 { margin-top:0; }
+  .card.accent { border-color:#22d3ee55; box-shadow:0 0 26px -14px #22d3ee88; }
+  .card.warn { border-color:#f59e0b55; }
+  .card.ok { border-color:#22c55e55; }
+
+  .badge {
+    display:inline-block; font-size:12.5px; font-weight:700; letter-spacing:.4px;
+    padding:4px 11px; border-radius:999px; margin-right:8px;
+    background:#0e2b45; color:#7dd3fc; border:1px solid #1e4b6f;
+  }
+  .badge.pink { background:#3a1230; color:#f9a8d4; border-color:#7a2456; }
+  .badge.green{ background:#0d2f1d; color:#86efac; border-color:#1c5c37; }
+  .badge.amber{ background:#3a2a08; color:#fcd34d; border-color:#7a5712; }
+
+  /* ---------- Tables ---------- */
+  table {
+    width:100%; border-collapse:collapse; margin:12px 0 18px; font-size:clamp(13px, .95vw, 15px);
+  }
+  th {
+    background:#132b45; color:#7dd3fc; text-align:left;
+    padding:10px 13px; font-weight:700; border:1px solid #1e3350;
+  }
+  td { padding:9px 13px; border:1px solid #1a2c44; color:#c9d6e8; }
+  tr:nth-child(even) td { background:rgba(19,43,69,.42); }
+  td code { font-size:12.5px; }
+
+  /* ---------- Steps ---------- */
+  .step {
+    display:flex; gap:16px; align-items:flex-start;
+    background:var(--panel-soft); border:1px solid var(--line);
+    border-radius:11px; padding:13px 17px; margin-bottom:10px;
+  }
+  .step .num {
+    flex:0 0 38px; height:38px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:16px; color:#04121f;
+    background:linear-gradient(135deg,#22d3ee,#3b82f6);
+  }
+  .step .body { flex:1; }
+  .step .body strong { display:block; font-size:17px; color:#eaf4ff; margin-bottom:3px; }
+  .step .body span { font-size:15.5px; color:#9db3cc; line-height:1.6; }
+
+  /* ---------- Title slide ---------- */
+  .title-slide {
+    display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+    height:100%; text-align:left;
+  }
+  .title-slide h1 { font-size:56px; margin-bottom:18px; }
+  .title-slide .sub {
+    font-size:clamp(18px, 1.55vw, 23px); color:#b2c1d4; margin-bottom:32px; line-height:1.55; max-width:980px;
+  }
+  .title-slide .meta {
+    font-size:15.5px; color:#7189a6; line-height:1.9;
+    border-left:3px solid #22d3ee; padding-left:18px;
+  }
+  .title-tag {
+    font-size:14px; letter-spacing:3px; text-transform:uppercase;
+    color:#22d3ee; font-weight:700; margin-bottom:20px;
+  }
+
+  /* ---------- Navigation ---------- */
+  .nav {
+    position:fixed; bottom:clamp(16px, 3vh, 28px); right:clamp(18px, 2.5vw, 34px); z-index:90;
+    display:flex; align-items:center; gap:12px;
+  }
+  .nav button {
+    width:46px; height:46px; border-radius:50%; cursor:pointer;
+    border:1px solid #1e4b6f; background:rgba(15,31,52,.92); color:#7dd3fc;
+    font-size:19px; display:flex; align-items:center; justify-content:center;
+    transition:all .2s ease;
+  }
+  .nav button:hover { background:#1a3a5c; color:#fff; transform:translateY(-2px); border-color:#22d3ee; }
+  .nav button:focus-visible { outline:2px solid #7dd3fc; outline-offset:3px; }
+  .nav button:disabled { opacity:.3; cursor:not-allowed; transform:none; }
+  .counter {
+    position:fixed; bottom:clamp(24px, 4vh, 40px); left:var(--slide-x); z-index:90;
+    font-size:14.5px; color:#5b7a9d; font-weight:600; letter-spacing:1px;
+  }
+  .hint {
+    position:fixed; bottom:clamp(24px, 4vh, 40px); left:50%; transform:translateX(-50%);
+    font-size:13px; color:#3f5872; z-index:90;
+  }
+  @media (min-width:1200px) and (min-aspect-ratio:16/9) {
+    .slide { padding-top:clamp(28px, 4.5vh, 52px); }
+    h2 { margin-bottom:16px; }
+    .card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom:0; }
+  }
+  @media (min-width:1600px) and (min-aspect-ratio:16/9) {
+    :root {
+      --slide-x:clamp(82px, 6vw, 128px);
+      --slide-top:clamp(42px, 5vh, 64px);
+      --slide-bottom:clamp(96px, 10vh, 122px);
+    }
+    h1 { font-size:clamp(52px, 3.5vw, 68px); }
+    h2 { font-size:clamp(34px, 2.35vw, 42px); margin-bottom:22px; padding-bottom:13px; }
+    h3 { font-size:clamp(21px, 1.45vw, 25px); margin-top:22px; }
+    h4 { font-size:clamp(18px, 1.2vw, 21px); }
+    p, li { font-size:clamp(17px, 1.12vw, 20px); line-height:1.68; }
+    p[style*="font-size"], li[style*="font-size"] { font-size:clamp(17px, 1.08vw, 19px) !important; }
+    pre {
+      padding:18px 22px;
+      margin:16px 0 20px;
+      font-size:clamp(15px, .92vw, 18px);
+      line-height:1.62;
+    }
+    code { font-size:clamp(14px, .9vw, 17px); }
+    td code { font-size:clamp(13px, .82vw, 15px); }
+    .grid2 { gap:clamp(28px, 2.4vw, 42px); }
+    .grid3 { gap:clamp(22px, 2vw, 34px); }
+    .card { padding:clamp(20px, 1.7vw, 30px) clamp(22px, 1.9vw, 34px); }
+    .step { gap:20px; padding:17px 22px; margin-bottom:14px; }
+    .step .num { flex-basis:46px; height:46px; font-size:19px; }
+    .step .body strong { font-size:20px; margin-bottom:5px; }
+    .step .body span { font-size:18px; line-height:1.65; }
+    table { font-size:clamp(15px, 1vw, 18px); }
+    th { padding:13px 16px; }
+    td { padding:12px 16px; }
+    .title-slide h1 { font-size:clamp(62px, 4vw, 78px); margin-bottom:24px; }
+    .title-slide .sub { font-size:clamp(22px, 1.7vw, 28px); max-width:1200px; }
+    .title-tag { font-size:16px; margin-bottom:26px; }
+  }
+  @media (max-width:820px){
+    :root { --slide-x:22px; --slide-top:32px; --slide-bottom:110px; }
+    .slide { padding-left:var(--slide-x); padding-right:var(--slide-x); }
+    h1 { font-size:32px; } h2 { font-size:23px; }
+    .title-slide h1 { font-size:34px; }
+    .counter { left:var(--slide-x); } .hint { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress"><div id="bar"></div></div>
+
+<div class="deck" id="deck">
+
+<!-- ==================== 1. TITLE ==================== -->
+<section class="slide active">
+  <div class="title-slide">
+    <div class="title-tag">Lab mô phỏng mạng máy tính</div>
+    <h1>Mô phỏng mạng với NS-2<br>Mạng có dây &amp; Mạng không dây</h1>
+    <p class="sub">
+      Xây dựng tô-pô – Sinh lưu lượng – Phân tích vết –
+      Đánh giá hiệu năng và tối ưu tham số
+    </p>
+    <div class="meta">
+      
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 2. AGENDA ==================== -->
+<section class="slide">
+  <h2>Nội dung trình bày</h2>
+  <div class="grid2">
+    <div>
+      <div class="step"><div class="num">1</div><div class="body"><strong>Giới thiệu &amp; kiến trúc NS-2</strong><span>Mô hình hoạt động, thành phần chính và luồng xử lý.</span></div></div>
+      <div class="step"><div class="num">2</div><div class="body"><strong>Lý thuyết: 6 bước mô phỏng</strong><span>Event Scheduler → Trace → Tô-pô → Transport → Traffic → Thời gian.</span></div></div>
+      <div class="step"><div class="num">3</div><div class="body"><strong>Mạng có dây (wired)</strong><span>Thông số đầu vào + code Tcl đầy đủ.</span></div></div>
+    </div>
+    <div>
+      <div class="step"><div class="num">4</div><div class="body"><strong>Mạng không dây (wireless)</strong><span>802.11 ad-hoc, AODV, thông số + code Tcl.</span></div></div>
+      <div class="step"><div class="num">5</div><div class="body"><strong>Phân tích kết quả</strong><span>Trace file, script AWK, các chỉ số hiệu năng.</span></div></div>
+      <div class="step"><div class="num">6</div><div class="body"><strong>Cải tiến &amp; bài tập</strong><span>Giải pháp tối ưu, demo mẫu, bài tập về nhà.</span></div></div>
+    </div>
+  </div>
+  <div class="card accent" style="margin-top:22px">
+    <h4>🎯 Mục tiêu sau bài học</h4>
+    <p style="margin:0">Sinh viên có thể <b>tự viết một kịch bản Tcl</b> hoàn chỉnh cho cả mạng có dây và không dây,
+    <b>chạy mô phỏng</b>, <b>trích xuất</b> thông lượng – độ trễ – jitter – tỉ lệ mất gói từ file trace,
+    và <b>đề xuất giải pháp</b> điều chỉnh tham số để cải thiện hiệu năng.</p>
+  </div>
+</section>
+
+<!-- ==================== 3. NS-2 LÀ GÌ ==================== -->
+<section class="slide">
+  <h2>1. NS-2 là gì?</h2>
+  <div class="grid2">
+    <div>
+      <p><b>NS-2 (Network Simulator version 2)</b> là phần mềm mô phỏng mạng mã nguồn mở,
+      ra đời từ dự án VINT (Virtual InterNetwork Testbed) — hợp tác giữa
+      UC Berkeley, USC/ISI, Xerox PARC, LBL và các trường đại học.</p>
+      <h4>Đặc điểm chính</h4>
+      <ul>
+        <li><b>Mô phỏng sự kiện rời rạc</b> (discrete-event simulation) — thời gian nhảy cóc giữa các sự kiện, không mô phỏng theo thời gian thực.</li>
+        <li>Hỗ trợ <b>cả mạng có dây lẫn không dây</b> (802.3, 802.11, ad-hoc, sensor…).</li>
+        <li>Thư viện giao thức phong phú: TCP (Tahoe, Reno, NewReno, SACK, Vegas), UDP, RTP, các thuật toán định tuyến (LS, DV, AODV, DSR, DSDV, TORA).</li>
+        <li>Cơ chế hàng đợi: DropTail, RED, FQ, SFQ, DRR, CBQ.</li>
+        <li>Công cụ trực quan: <b>NAM</b> (Network Animator), <b>XGraph</b>.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="card">
+        <h4>Ngôn ngữ &amp; mô hình “split object”</h4>
+        <p style="font-size:15.5px">NS-2 dùng <b>hai ngôn ngữ song song</b>:</p>
+        <ul style="font-size:15.5px">
+          <li><b>C++</b> — phần lõi xử lý nặng, tốc độ cao: gói tin, hàng đợi, node, link, agent.</li>
+          <li><b>OTcl</b> (Object Tcl) — phần kịch bản, cấu hình, dễ sửa đổi.</li>
+        </ul>
+        <p style="font-size:15.5px;margin-bottom:0">Hai phần liên kết với nhau qua <b>TclCL</b>.
+        Người dùng thường chỉ viết kịch bản <code>.tcl</code>.</p>
+      </div>
+      <div class="card accent" style="margin-top:16px">
+        <h4>Vì sao dùng NS-2?</h4>
+        <ul style="font-size:15.5px;margin-bottom:0">
+          <li>Miễn phí, mã nguồn mở, cộng đồng lớn.</li>
+          <li>Tái lập thí nghiệm dễ dàng, chi phí thấp.</li>
+          <li>Kiểm chứng giao thức <em>trước khi</em> triển khai thực tế.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 4. KIẾN TRÚC ==================== -->
+<section class="slide">
+  <h2>Kiến trúc &amp; luồng làm việc với NS-2</h2>
+  <pre><code><span class="c-com">┌─────────────────────────────────────────────────────────────────────┐</span>
+<span class="c-com">│                         NGƯỜI DÙNG                                   │</span>
+<span class="c-com">│   Viết kịch bản OTcl (.tcl):  topology + agent + traffic + schedule │</span>
+<span class="c-com">└──────────────────────────────┬──────────────────────────────────────┘</span>
+                               │  <span class="c-key">ns</span> wired.tcl
+                               ▼
+<span class="c-com">┌─────────────────────────────────────────────────────────────────────┐</span>
+<span class="c-com">│  NHÂN MÔ PHỎNG NS-2                                                  │</span>
+<span class="c-com">│   ┌──────────────┐   TclCL   ┌──────────────────────────────────┐   │</span>
+<span class="c-com">│   │  OTcl        │◄─────────►│  C++ core                        │   │</span>
+<span class="c-com">│   │  (script)    │           │  Node · Link · Queue · Agent     │   │</span>
+<span class="c-com">│   │              │           │  Packet · Scheduler · Trace      │   │</span>
+<span class="c-com">│   └──────────────┘           └──────────────────────────────────┘   │</span>
+<span class="c-com">└──────────────┬───────────────────────────────┬──────────────────────┘</span>
+               │                               │
+               ▼                               ▼
+      <span class="c-str">out.tr</span> (trace file)              <span class="c-str">out.nam</span> (animation)
+               │                               │
+               ▼                               ▼
+   <span class="c-key">awk / grep / perl</span>  ──►  số liệu     <span class="c-key">nam</span> ──► xem trực quan
+               │
+               ▼
+        <span class="c-key">xgraph</span> / <span class="c-key">gnuplot</span> ──► đồ thị hiệu năng</code></pre>
+
+  <div class="grid3" style="margin-top:6px">
+    <div class="card"><h4>📄 File .tcl</h4><p style="font-size:15px;margin:0">Kịch bản mô tả toàn bộ mạng và kịch bản chạy.</p></div>
+    <div class="card"><h4>📊 File .tr</h4><p style="font-size:15px;margin:0">Vết mọi sự kiện gói tin — nguồn dữ liệu để tính hiệu năng.</p></div>
+    <div class="card"><h4>🎬 File .nam</h4><p style="font-size:15px;margin:0">Dữ liệu hoạt ảnh cho NAM, xem mạng “chạy” trực quan.</p></div>
+  </div>
+</section>
+
+<!-- ==================== 5. TỔNG QUAN 6 BƯỚC ==================== -->
+<section class="slide">
+  <h2>2. Các bước chính trong việc tiến hành mô phỏng mạng</h2>
+
+  <div class="grid2">
+    <div>
+      <div class="step"><div class="num">1</div><div class="body"><strong>Tạo bộ lập lịch sự kiện</strong><span>Creating Event Scheduler — khởi tạo đối tượng <code>Simulator</code>, lên lịch và chạy.</span></div></div>
+      <div class="step"><div class="num">2</div><div class="body"><strong>Ghi lại vết các sự kiện</strong><span>Trace ra file <code>*.tr</code> và/hoặc <code>*.nam</code>.</span></div></div>
+      <div class="step"><div class="num">3</div><div class="body"><strong>Thiết lập mạng mô phỏng</strong><span>Tô-pô (node, link, hàng đợi) → mô hình lỗi → thuật toán định tuyến.</span></div></div>
+      <div class="step"><div class="num">4</div><div class="body"><strong>Tạo kết nối tầng giao vận</strong><span>TCP / UDP: tạo agent nguồn – đích, gắn vào node, nối lại.<p></p><p></p><p></p></span></div></div>
+    </div>
+    <div>
+      <div class="step"><div class="num">5</div><div class="body"><strong>Tạo nguồn sinh lưu lượng</strong><span>FTP, Telnet (trên TCP); CBR, Exponential, Pareto (trên UDP).</span></div></div>
+      <div class="step"><div class="num">6</div><div class="body"><strong>Xác định thời gian mô phỏng</strong><span>Đủ dài để kết quả hội tụ, đủ ngắn để tiết kiệm thời gian/đĩa.</span></div></div>
+      <div class="step"><div class="num">7</div><div class="body"><strong>Chạy &amp; quan sát</strong><span><code>ns script.tcl</code>, mở NAM xem hoạt ảnh, kiểm tra file trace sinh ra.</span></div></div>
+      <div class="step"><div class="num">8</div><div class="body"><strong>Phân tích &amp; đánh giá</strong><span>dùng <code>awk</code>/<code>grep</code> trích xuất thông lượng, độ trễ, jitter, PDR → vẽ đồ thị → kết luận &amp; tối ưu.</p></span></div></div>
+    </div>
+  
+  </div>
+</section>
+
+<!-- ==================== 6. BƯỚC 1 ==================== -->
+<section class="slide">
+  <h2>Bước 1 — Tạo bộ lập lịch các sự kiện (Event Scheduler)</h2>
+  <div class="grid2">
+    <div>
+      <p>NS-2 là mô phỏng <b>sự kiện rời rạc</b>: mọi hành động (gửi gói, nhận gói, hết thời gian…)
+      đều là một <b>sự kiện</b> được gắn mốc thời gian và đưa vào hàng đợi. Bộ lập lịch lấy sự kiện
+      có thời gian nhỏ nhất ra thực thi, rồi nhảy tới thời điểm đó.</p>
+      <h4>Cú pháp ba dòng “kinh điển”</h4>
+      <pre><code><span class="c-com"># 1. Tạo bộ lập lịch</span>
+<span class="c-key">set</span> <span class="c-var">ns</span> [<span class="c-key">new Simulator</span>]
+
+<span class="c-com"># 2. Lên lịch sự kiện: $ns at &lt;thời điểm&gt; "lệnh Tcl"</span>
+<span class="c-var">$ns</span> at <span class="c-num">0.5</span> <span class="c-str">"$ftp start"</span>
+<span class="c-var">$ns</span> at <span class="c-num">20.0</span> <span class="c-str">"finish"</span>
+
+<span class="c-com"># 3. Khởi động vòng lặp sự kiện</span>
+<span class="c-var">$ns</span> run</code></pre>
+      <div class="card">
+        <h4>Giải thích</h4>
+        <ul style="font-size:15.5px;margin-bottom:0">
+          <li><code>new Simulator</code> — tạo đối tượng mô phỏng, đồng thời tạo bộ lập lịch mặc định (<code>List</code> hoặc <code>Heap</code>).</li>
+          <li><code>$ns at t "cmd"</code> — bất kỳ lệnh Tcl/ns hợp lệ nào đều có thể lên lịch.</li>
+          <li><code>$ns run</code> — chạy đến khi hết sự kiện (hoặc gặp <code>exit</code> / <code>halt</code>).</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card accent">
+        <h4>🔧 Bộ lập lịch thay thế</h4>
+        <p style="font-size:15.5px">Mặc định NS-2 dùng lịch <b>calendar/list</b>. Có thể chọn loại khác
+        ngay trước khi tạo Simulator:</p>
+        <pre style="margin-bottom:0"><code><span class="c-com"># Dùng heap (nhanh hơn khi nhiều sự kiện)</span>
+<span class="c-key">set</span> sched [<span class="c-key">new Scheduler/Heap</span>]
+<span class="c-key">set</span> <span class="c-var">ns</span> [<span class="c-key">new Simulator</span>]
+<span class="c-var">$ns</span> use-scheduler $sched</code></pre>
+      </div>
+      <div class="card warn" style="margin-top:16px">
+        <h4>⚠️ Bẫy thường gặp</h4>
+        <ul style="font-size:15.5px;margin-bottom:0">
+          <li>Quên <code>$ns run</code> → chương trình kết thúc ngay, không có gì xảy ra.</li>
+          <li>Quên <code>$ns at &lt;t_stop&gt; "finish"</code> → mô phỏng không bao giờ dừng.</li>
+          <li>Trong <code>finish</code> phải <code>flush-trace</code> và <code>close</code> file trước khi thoát, nếu không file trace sẽ rỗng.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 7. BƯỚC 2 ==================== -->
+<section class="slide">
+  <h2>Bước 2 — Ghi lại vết các sự kiện của mạng mô phỏng</h2>
+  <div class="grid2">
+    <div>
+      <h3>Ghi toàn bộ vết</h3>
+      <pre><code><span class="c-com"># Vết dạng text (dùng để phân tích)</span>
+<span class="c-key">set</span> nf [<span class="c-key">open</span> out.tr w]
+<span class="c-var">$ns</span> trace-all <span class="c-var">$nf</span>
+
+<span class="c-com"># Vết dạng NAM (dùng để xem hoạt ảnh)</span>
+<span class="c-key">set</span> namf [<span class="c-key">open</span> out.nam w]
+<span class="c-var">$ns</span> namtrace-all <span class="c-var">$namf</span></code></pre>
+
+      <h3>Chỉ ghi vết một số link</h3>
+      <pre><code><span class="c-com"># Chỉ trace link n0 &lt;-&gt; n1 (giảm dung lượng file)</span>
+<span class="c-var">$ns</span> trace-queue <span class="c-var">$n0</span> <span class="c-var">$n1</span>
+<span class="c-var">$ns</span> namtrace-queue <span class="c-var">$n0</span> <span class="c-var">$n1</span></code></pre>
+
+      <h3>Thủ tục kết thúc (bắt buộc)</h3>
+      <pre><code><span class="c-key">proc</span> finish {} {
+    <span class="c-key">global</span> ns nf namf
+    <span class="c-var">$ns</span> flush-trace
+    <span class="c-key">close</span> <span class="c-var">$nf</span>
+    <span class="c-key">close</span> <span class="c-var">$namf</span>
+    <span class="c-key">exec</span> nam out.nam &amp;
+    <span class="c-key">exit</span> <span class="c-num">0</span>
+}</code></pre>
+    </div>
+    <div>
+      <div class="card accent">
+        <h4>💡 Vì sao phải trace?</h4>
+        <p style="font-size:15.5px">File <code>.tr</code> là <b>“nhật ký”</b> của toàn bộ mô phỏng.
+        Mọi chỉ số hiệu năng (thông lượng, độ trễ, jitter, mất gói…) đều được
+        <b>tính lại từ file này</b> bằng <code>awk</code>/<code>perl</code>/<code>python</code>.
+        Không có trace ⇒ không có kết quả để đánh giá.</p>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h4>🎬 File NAM</h4>
+        <p style="font-size:15.5px;margin-bottom:0">NAM là công cụ <b>hoạt ảnh hoá</b>:
+        xem gói tin di chuyển, hàng đợi đầy, gói bị drop, node di động…
+        Rất hữu ích để <b>kiểm tra tô-pô đúng chưa</b> và <b>thuyết trình demo</b>.
+        Chạy: <code>nam out.nam &amp;</code></p>
+      </div>
+      <div class="card warn" style="margin-top:16px">
+        <h4>⚠️ Kích thước file</h4>
+        <p style="font-size:15.5px;margin-bottom:0">File trace có thể <b>rất lớn</b> (hàng trăm MB với mô phỏng dài).
+        Nên: (1) chỉ trace link cần thiết, (2) giới hạn thời gian mô phỏng, (3) nén hoặc xoá sau khi phân tích.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 8. BƯỚC 3.1 ==================== -->
+<section class="slide">
+  <h2>Bước 3.1 — Thiết lập tô-pô mạng (Topology)</h2>
+  <div class="grid2">
+    <div>
+      <h3>Tạo các nút mạng (Nodes)</h3>
+      <pre><code><span class="c-key">set</span> n0 [<span class="c-var">$ns</span> node]
+<span class="c-key">set</span> n1 [<span class="c-var">$ns</span> node]
+<span class="c-key">set</span> n2 [<span class="c-var">$ns</span> node]
+<span class="c-key">set</span> n3 [<span class="c-var">$ns</span> node]</code></pre>
+
+      <h3>Tạo đường truyền &amp; hàng đợi</h3>
+      <pre><code><span class="c-var">$ns</span> duplex-link <span class="c-var">$n0</span> <span class="c-var">$n1</span> <span class="c-num">10Mb</span> <span class="c-num">2ms</span> DropTail</code></pre>
+      <p style="font-size:15.5px">Dòng lệnh chỉ rõ <b>3 tham số</b>:</p>
+      <ul style="font-size:15.5px">
+        <li><b>Băng thông</b> — <code>10Mb</code> (Megabit/s)</li>
+        <li><b>Độ trễ</b> — <code>2ms</code> (millisecond)</li>
+        <li><b>Kiểu hàng đợi</b> — <code>DropTail</code>, <code>RED</code>, <code>CBQ</code>, <code>FQ</code>, <code>SFQ</code>, <code>DRR</code></li>
+      </ul>
+
+      <h3>Giới hạn độ lớn hàng đợi</h3>
+      <pre><code><span class="c-com"># Số gói tối đa trong hàng đợi (mặc định 50)</span>
+<span class="c-var">$ns</span> queue-limit <span class="c-var">$n1</span> <span class="c-var">$n2</span> <span class="c-num">20</span></code></pre>
+    </div>
+    <div>
+      <h3>Định hướng cho NAM</h3>
+      <pre><code><span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n0</span> <span class="c-var">$n1</span> orient right
+<span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n1</span> <span class="c-var">$n2</span> orient right
+<span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n2</span> <span class="c-var">$n3</span> orient right
+
+<span class="c-com"># Màu &amp; nhãn cho link</span>
+<span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n1</span>-<span class="c-var">$n2</span> queuePos 0.5</code></pre>
+
+      <h3>Link một chiều &amp; LAN</h3>
+      <pre><code><span class="c-com"># Link một chiều (simplex)</span>
+<span class="c-var">$ns</span> simplex-link <span class="c-var">$n0</span> <span class="c-var">$n1</span> 10Mb 5ms DropTail
+
+<span class="c-com"># Tạo LAN (nhiều node dùng chung bus)</span>
+<span class="c-key">set</span> lan [<span class="c-var">$ns</span> make-lan <span class="c-str">"$n0 $n1 $n2"</span> \
+          10Mb 2ms LL Queue/DropTail Mac/802_3]</code></pre>
+
+      <div class="card accent" style="margin-top:10px">
+        <h4>📐 Tham số cần ghi rõ trong báo cáo</h4>
+        <p style="font-size:15.5px;margin-bottom:0">Số node · Băng thông từng link · Độ trễ từng link ·
+        Kiểu hàng đợi · Độ lớn hàng đợi (queue-limit) · Loại link (duplex/simplex).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 9. BƯỚC 3.2 ==================== -->
+<section class="slide">
+  <h2>Bước 3.2 — Đưa mô hình lỗi vào đường truyền</h2>
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <h4>Nguyên lý</h4>
+        <p style="font-size:15.5px">Nếu <b>không khai báo</b>, các đường truyền được tạo ra sẽ
+        <b>không có lỗi</b>. Trong nghiên cứu, đường truyền có dây thường được coi là không lỗi.</p>
+        <p style="font-size:15.5px;margin-bottom:0">Các mô hình lỗi tuy được “đưa vào đường truyền”, nhưng
+        thực tế là <b>đánh dấu các gói tin có lỗi ngay tại hàng đợi ở đầu vào</b> của đường truyền nối 2 nút mạng.</p>
+      </div>
+
+      <h3>Tạo Error Module</h3>
+      <pre><code><span class="c-key">set</span> loss_module [<span class="c-key">new ErrorModel</span>]
+<span class="c-var">$loss_module</span> set rate_ <span class="c-num">0.01</span>
+<span class="c-var">$loss_module</span> unit pkt
+<span class="c-var">$loss_module</span> ranvar [<span class="c-key">new RandomVariable/Uniform</span>]
+<span class="c-var">$loss_module</span> drop-target [<span class="c-key">new Agent/Null</span>]</code></pre>
+
+      <h3>Gắn Error Module vào link</h3>
+      <pre><code><span class="c-var">$ns</span> lossmodel <span class="c-var">$loss_module</span> <span class="c-var">$n0</span> <span class="c-var">$n1</span></code></pre>
+    </div>
+    <div>
+      <div class="card accent">
+        <h4>🔍 Giải thích tham số</h4>
+        <table style="margin-bottom:0">
+          <tbody>
+            <tr><td><code>rate_ 0.01</code></td><td>Tỉ lệ lỗi 1 %</td></tr>
+            <tr><td><code>unit pkt</code></td><td>Đơn vị tính theo <b>gói</b> (có thể là <code>bit</code>, <code>byte</code>)</td></tr>
+            <tr><td><code>ranvar</code></td><td>Biến ngẫu nhiên quyết định gói nào bị lỗi — <code>Uniform</code>, <code>Exponential</code>, <code>Pareto</code></td></tr>
+            <tr><td><code>drop-target</code></td><td>Đích nhận gói bị lỗi — thường là <code>Agent/Null</code> (huỷ gói)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h4>Ý nghĩa thực tiễn</h4>
+        <ul style="font-size:15.5px;margin-bottom:0">
+          <li>Mô phỏng đường truyền <b>không dây / vệ tinh / di động</b> — nơi lỗi bit là đặc trưng.</li>
+          <li>Kiểm tra khả năng <b>chịu lỗi</b> của TCP (retransmission, congestion control).</li>
+          <li>Đánh giá tác động của tỉ lệ lỗi lên <b>thông lượng và độ trễ</b>.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 10. BƯỚC 3.3 ==================== -->
+<section class="slide">
+  <h2>Bước 3.3 — Chọn thuật toán định tuyến (Routing)</h2>
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <h4>Mạng có dây</h4>
+        <p style="font-size:15.5px">Trong môn học này (năm 2007) chỉ nghiên cứu mô phỏng mạng có dây,
+        nên <b>không cần khai báo thuật toán routing</b> — NS-2 sẽ dùng giá trị ngầm định.</p>
+        <p style="font-size:15.5px;margin-bottom:0">Mặc định: <b>Link-State (LS)</b> — mỗi node biết toàn bộ tô-pô
+        và tính đường đi ngắn nhất (thuật toán Dijkstra).</p>
+      </div>
+
+      <h3>Khai báo tường minh (tuỳ chọn)</h3>
+      <pre><code><span class="c-com"># Link-State (mặc định)</span>
+<span class="c-var">$ns</span> rtproto LS
+
+<span class="c-com"># Distance-Vector</span>
+<span class="c-var">$ns</span> rtproto DV
+
+<span class="c-com"># Định tuyến thủ công</span>
+<span class="c-var">$ns</span> rtproto Manual</code></pre>
+
+      <pre><code><span class="c-com"># Thêm route tĩnh thủ công</span>
+<span class="c-var">$ns</span> rtproto Manual
+<span class="c-var">$n0</span> add-route <span class="c-var">$n3</span> <span class="c-var">$n1</span></code></pre>
+    </div>
+    <div>
+      <div class="card accent">
+        <h4>Mạng không dây Ad-hoc</h4>
+        <p style="font-size:15.5px">Bắt buộc chọn giao thức định tuyến qua tham số <code>-adhocRouting</code>
+        khi cấu hình node:</p>
+        <table style="margin-bottom:0">
+          <thead><tr><th>Giao thức</th><th>Đặc điểm</th></tr></thead>
+          <tbody>
+            <tr><td><code>AODV</code></td><td>Định tuyến theo yêu cầu, phổ biến nhất</td></tr>
+            <tr><td><code>DSR</code></td><td>Định tuyến nguồn động</td></tr>
+            <tr><td><code>DSDV</code></td><td>Distance-Vector đích đích (proactive)</td></tr>
+            <tr><td><code>TORA</code></td><td>Định tuyến phân tán, hay dùng cho mạng động</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h4>📚 Tài liệu chi tiết</h4>
+        <p style="font-size:15.5px;margin-bottom:0">Xem thêm trong <b>“The ns Manual”</b>
+        (chương Routing) — có kèm mô tả chi tiết từng giao thức, tham số và ví dụ.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 11. BƯỚC 4 ==================== -->
+<section class="slide">
+  <h2>Bước 4 — Tạo kết nối ở tầng giao vận (TCP / UDP)</h2>
+  <div class="grid2">
+    <div>
+      <h3>4.1 — Kết nối TCP</h3>
+      <pre><code><span class="c-com"># Tạo thực thể gửi &amp; nhận TCP</span>
+<span class="c-key">set</span> tsrc [<span class="c-key">new Agent/TCP</span>]
+<span class="c-key">set</span> tdst [<span class="c-key">new Agent/TCPSink</span>]
+
+<span class="c-com"># Gắn vào node mạng</span>
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$n0</span> <span class="c-var">$tsrc</span>
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$n1</span> <span class="c-var">$tdst</span>
+
+<span class="c-com"># Tạo kết nối giữa gửi và nhận</span>
+<span class="c-var">$ns</span> connect <span class="c-var">$tsrc</span> <span class="c-var">$tdst</span></code></pre>
+
+      <h4>Các biến thể TCP trong NS-2</h4>
+      <table>
+        <tbody>
+          <tr><td><code>Agent/TCP</code></td><td>Tahoe (mặc định)</td></tr>
+          <tr><td><code>Agent/TCP/Reno</code></td><td>Reno — Fast Recovery</td></tr>
+          <tr><td><code>Agent/TCP/Newreno</code></td><td>NewReno — cải tiến Fast Recovery</td></tr>
+          <tr><td><code>Agent/TCP/Sack1</code></td><td>SACK — chọn lọc ACK</td></tr>
+          <tr><td><code>Agent/TCP/Vegas</code></td><td>Vegas — dựa trên độ trễ</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>4.2 — Kết nối UDP</h3>
+      <pre><code><span class="c-com"># Tạo thực thể gửi &amp; nhận UDP</span>
+<span class="c-key">set</span> usrc [<span class="c-key">new Agent/UDP</span>]
+<span class="c-key">set</span> udst [<span class="c-key">new Agent/Null</span>]
+
+<span class="c-com"># Gắn vào node mạng</span>
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$n0</span> <span class="c-var">$usrc</span>
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$n1</span> <span class="c-var">$udst</span>
+
+<span class="c-com"># Tạo “kết nối” giữa gửi và nhận UDP</span>
+<span class="c-var">$ns</span> connect <span class="c-var">$usrc</span> <span class="c-var">$udst</span></code></pre>
+
+      <div class="card warn">
+        <h4>⚠️ Lưu ý về UDP</h4>
+        <p style="font-size:15.5px;margin-bottom:0">UDP là giao thức <b>không hướng kết nối</b>.
+        Khái niệm “kết nối” ở đây chỉ là <b>luồng gói tin</b> đi từ thực thể gửi đến thực thể nhận UDP.
+        Không có bắt tay, không có báo nhận, không có điều khiển tắc nghẽn.</p>
+      </div>
+
+      <div class="card accent" style="margin-top:16px">
+        <h4>🔖 Đánh dấu luồng (flow id)</h4>
+        <pre style="margin-bottom:0"><code><span class="c-var">$tcp</span> set fid_ <span class="c-num">1</span>
+<span class="c-var">$udp</span> set fid_ <span class="c-num">2</span>
+<span class="c-var">$ns</span> color <span class="c-num">1</span> Blue
+<span class="c-var">$ns</span> color <span class="c-num">2</span> Red</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 12. BƯỚC 5 ==================== -->
+<section class="slide">
+  <h2>Bước 5 — Tạo ra các nguồn sinh lưu lượng</h2>
+  <p>Lưu lượng trong mô phỏng có thể thuộc <b>một trong ba loại</b>:</p>
+  <div class="grid3">
+    <div class="card accent">
+      <h4>1️⃣ Mô hình Toán học</h4>
+      <p style="font-size:15px;margin:0">Lưu lượng do các ứng dụng dùng dịch vụ của giao thức giao vận sinh ra.
+      Ví dụ: FTP dùng TCP ⇒ tốc độ tỉ lệ với độ lớn cửa sổ gửi, tuân theo SS, CA, Exponential backoff…</p>
+    </div>
+    <div class="card">
+      <h4>2️⃣ Từ file vết thực</h4>
+      <p style="font-size:15px;margin:0">Lưu lượng dựa trên lưu lượng mạng thực đã được ghi vào file
+      (trace file), rồi “phát lại” trong mô phỏng.</p>
+    </div>
+    <div class="card">
+      <h4>3️⃣ Emulation</h4>
+      <p style="font-size:15px;margin:0">Lưu lượng của mạng thực <b>đang hoạt động</b>, tương tác trực tiếp
+      với bộ mô phỏng NS-2 (chế độ Emulation).</p>
+    </div>
+  </div>
+  <p style="margin-top:6px"><em>Trong phạm vi môn học này, chỉ trình bày loại thứ nhất.</em></p>
+
+  <div class="grid2">
+    <div>
+      <h3>5.1 — Lưu lượng do TCP vận chuyển</h3>
+      <h4>Ứng dụng FTP</h4>
+      <pre><code><span class="c-key">set</span> ftp [<span class="c-key">new Application/FTP</span>]
+<span class="c-var">$ftp</span> attach-agent <span class="c-var">$tsrc</span>
+<span class="c-var">$ns</span> at <span class="c-num">0.5</span> <span class="c-str">"$ftp start"</span>
+<span class="c-var">$ns</span> at <span class="c-num">20.0</span> <span class="c-str">"$ftp stop"</span></code></pre>
+
+      <h4>Ứng dụng Telnet</h4>
+      <pre><code><span class="c-key">set</span> telnet [<span class="c-key">new Application/Telnet</span>]
+<span class="c-var">$telnet</span> attach-agent <span class="c-var">$tsrc</span>
+<span class="c-var">$telnet</span> set interval_ <span class="c-num">0.1</span></code></pre>
+    </div>
+    <div>
+      <h3>5.2 — Lưu lượng do UDP vận chuyển</h3>
+      <h4>CBR — tốc độ không đổi</h4>
+      <pre><code><span class="c-key">set</span> src [<span class="c-key">new Application/Traffic/CBR</span>]
+<span class="c-var">$src</span> attach-agent <span class="c-var">$usrc</span>
+<span class="c-var">$src</span> set packet_size_ <span class="c-num">1000</span>
+<span class="c-var">$src</span> set rate_ <span class="c-num">1Mb</span>
+<span class="c-var">$src</span> set random_ <span class="c-num">false</span></code></pre>
+
+      <h4>Exponential / Pareto on-off</h4>
+      <pre><code><span class="c-key">set</span> src [<span class="c-key">new Application/Traffic/Exponential</span>]
+<span class="c-var">$src</span> set burst_time_ <span class="c-num">500ms</span>
+<span class="c-var">$src</span> set idle_time_ <span class="c-num">500ms</span>
+
+<span class="c-key">set</span> src [<span class="c-key">new Application/Traffic/Pareto</span>]
+<span class="c-var">$src</span> set shape_ <span class="c-num">1.5</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 13. BƯỚC 6 ==================== -->
+<section class="slide">
+  <h2>Bước 6 — Xác định thời gian mô phỏng cần thiết</h2>
+  <div class="grid2">
+    <div>
+      <div class="card accent">
+        <h4>🎯 Nguyên tắc vàng</h4>
+        <p style="margin-bottom:0">Chỉ nên thiết lập thời gian mô phỏng <b>vừa đủ</b>: nếu kéo dài thêm mà
+        <b>không thu được thêm kết quả</b> hoặc <b>không tăng độ chính xác</b> — hoặc độ chính xác tăng
+        không tương xứng với <b>giá phải trả</b> — thì dừng lại.</p>
+      </div>
+
+      <h4>“Giá” ở đây là gì?</h4>
+      <ul>
+        <li><b>Thời gian chờ</b> mô phỏng kết thúc (có thể hàng giờ với tô-pô lớn).</li>
+        <li><b>Dung lượng đĩa</b> mà tệp vết chiếm — thường <b>tỉ lệ thuận</b> với thời gian mô phỏng.</li>
+      </ul>
+
+      <div class="card warn">
+        <h4>👶 Cho người mới học</h4>
+        <p style="margin-bottom:0">Nên dùng <b>thời gian mô phỏng của các ví dụ mẫu</b> tương tự mạng mình
+        đang nghiên cứu, rồi điều chỉnh dần.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card ok">
+        <h4>📏 Khuyến nghị cụ thể</h4>
+        <table style="margin-bottom:0">
+          <thead><tr><th>Loại mạng</th><th>Thời gian mô phỏng</th></tr></thead>
+          <tbody>
+            <tr><td>Mạng có dây, tô-pô cố định, dùng TCP</td><td><b>≥ 8–10 lần RTT</b><br>thường <b>10 s – 100 s</b></td></tr>
+            <tr><td>Mạng Ad-hoc (không dây)</td><td><b>vài trăm giây trở lên</b></td></tr>
+            <tr><td>Mô phỏng đơn giản để học</td><td>10 s – 30 s</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h4>Vì sao cần ≥ 8–10 RTT với TCP?</h4>
+        <p style="font-size:15.5px;margin-bottom:0">Trong mạng có tô-pô cố định và vận chuyển bằng TCP,
+        thời gian mô phỏng <b>tối thiểu phải đủ để cửa sổ bên gửi TCP mở đến cực đại</b>.
+        Nếu dừng sớm, TCP vẫn đang ở pha <b>Slow Start</b> ⇒ thông lượng đo được thấp hơn thực tế,
+        kết quả không phản ánh đúng trạng thái ổn định của mạng.</p>
+      </div>
+
+      <div class="card accent" style="margin-top:16px">
+        <h4>🧮 Ví dụ tính nhanh</h4>
+        <p style="font-size:15.5px;margin-bottom:0">Giả sử RTT ≈ 40 ms ⇒ cần tối thiểu
+        10 × 40 ms = <b>400 ms</b> chỉ để cửa sổ mở. Nhưng để đo thông lượng ổn định,
+        ta chọn <b>20 s</b> — an toàn và cho kết quả hội tụ.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 14. WIRED: THÔNG SỐ ==================== -->
+<section class="slide">
+  <h2>3. Ví dụ 1 — Mạng CÓ DÂY: Thông số đầu vào</h2>
+  <div class="grid2">
+    <div>
+      <h3>Sơ đồ tô-pô</h3>
+      <pre><code><span class="c-com">   TCP/FTP (n0→n3)              UDP/CBR (n0→n3)</span>
+        │                             │
+        ▼                             ▼
+<span class="c-str">   ┌────┐   10Mb, 2ms    ┌────┐   2Mb, 20ms   ┌────┐   10Mb, 2ms   ┌────┐</span>
+<span class="c-str">   │ n0 │───────────────►│ n1 │──────────────►│ n2 │──────────────►│ n3 │</span>
+<span class="c-str">   └────┘   DropTail      └────┘   DropTail     └────┘   DropTail     └────┘</span>
+              qlimit 50              qlimit 20             qlimit 50
+                                    ▲
+                              <span class="c-com">NÚT CỔ CHAI (bottleneck)</span></code></pre>
+
+      <div class="card accent">
+        <h4>🎯 Kịch bản</h4>
+        <p style="font-size:15.5px;margin-bottom:0">Hai luồng lưu lượng cùng đi qua <b>nút cổ chai n1–n2</b>
+        (chỉ 2 Mb/s) trong khi các link biên là 10 Mb/s ⇒ tạo ra <b>tắc nghẽn</b>.
+        Mục đích: quan sát cách TCP phản ứng với tắc nghẽn và ảnh hưởng lên luồng UDP.</p>
+      </div>
+    </div>
+    <div>
+      <h3>Bảng thông số đầu vào</h3>
+      <table>
+        <thead><tr><th>Thành phần</th><th>Giá trị</th></tr></thead>
+        <tbody>
+          <tr><td>Số node</td><td>4 — <code>n0, n1, n2, n3</code></td></tr>
+          <tr><td>Link <code>n0–n1</code></td><td>10 Mb/s · 2 ms · DropTail · queue 50</td></tr>
+          <tr><td><b>Link <code>n1–n2</code></b></td><td><b>2 Mb/s · 20 ms · DropTail · queue 20</b></td></tr>
+          <tr><td>Link <code>n2–n3</code></td><td>10 Mb/s · 2 ms · DropTail · queue 50</td></tr>
+          <tr><td>Giao thức vận tải</td><td>TCP (Reno) + UDP</td></tr>
+          <tr><td>Ứng dụng 1</td><td>FTP trên TCP, <code>n0 → n3</code></td></tr>
+          <tr><td>Ứng dụng 2</td><td>CBR 1 Mb/s, packet 1000 B, UDP, <code>n0 → n3</code></td></tr>
+          <tr><td>Định tuyến</td><td>Mặc định (Link-State)</td></tr>
+          <tr><td>Mô hình lỗi</td><td>Không (link có dây)</td></tr>
+          <tr><td>Thời gian mô phỏng</td><td>20 s</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 15. WIRED: CODE ==================== -->
+<section class="slide">
+  <h2>3. Ví dụ 1 — Mạng có dây: Code Tcl đầy đủ (<code>wired.tcl</code>)</h2>
+  <pre><code><span class="c-com"># =====================================================================</span>
+<span class="c-com"># wired.tcl — Mo phong mang co day: n0 -- n1 -- n2 -- n3</span>
+<span class="c-com"># Luu luong: TCP/FTP + UDP/CBR di qua nut co chai n1-n2 (2Mb, 20ms)</span>
+<span class="c-com"># =====================================================================</span>
+
+<span class="c-com"># ---------- BUOC 1: Tao bo lap lich su kien ----------</span>
+<span class="c-key">set</span> <span class="c-var">ns</span> [<span class="c-key">new Simulator</span>]
+<span class="c-var">$ns</span> color <span class="c-num">1</span> Blue
+<span class="c-var">$ns</span> color <span class="c-num">2</span> Red
+
+<span class="c-com"># ---------- BUOC 2: Ghi vet su kien ----------</span>
+<span class="c-key">set</span> tracefile [<span class="c-key">open</span> wired.tr w]
+<span class="c-var">$ns</span> trace-all <span class="c-var">$tracefile</span>
+<span class="c-key">set</span> namfile [<span class="c-key">open</span> wired.nam w]
+<span class="c-var">$ns</span> namtrace-all <span class="c-var">$namfile</span>
+
+<span class="c-com"># ---------- Thu tuc ket thuc ----------</span>
+<span class="c-key">proc</span> finish {} {
+    <span class="c-key">global</span> ns tracefile namfile
+    <span class="c-var">$ns</span> flush-trace
+    <span class="c-key">close</span> <span class="c-var">$tracefile</span>
+    <span class="c-key">close</span> <span class="c-var">$namfile</span>
+    <span class="c-key">puts</span> <span class="c-str">"=== Mo phong ket thuc ==="</span>
+    <span class="c-key">exec</span> /home/yourusername/ns-allineone-2.35/nam-1.15/nam wired.nam &amp;
+    <span class="c-key">exit</span> <span class="c-num">0</span>
+}
+
+<span class="c-com"># ---------- BUOC 3.1: Thiet lap to-po ----------</span>
+<span class="c-key">set</span> n0 [<span class="c-var">$ns</span> node]
+<span class="c-key">set</span> n1 [<span class="c-var">$ns</span> node]
+<span class="c-key">set</span> n2 [<span class="c-var">$ns</span> node]
+<span class="c-key">set</span> n3 [<span class="c-var">$ns</span> node]
+
+<span class="c-com"># Link bien: 10 Mb/s, 2 ms, DropTail</span>
+<span class="c-var">$ns</span> duplex-link <span class="c-var">$n0</span> <span class="c-var">$n1</span> 10Mb 2ms DropTail
+<span class="c-var">$ns</span> duplex-link <span class="c-var">$n2</span> <span class="c-var">$n3</span> 10Mb 2ms DropTail
+<span class="c-com"># Link co chai: 2 Mb/s, 20 ms, DropTail</span>
+<span class="c-var">$ns</span> duplex-link <span class="c-var">$n1</span> <span class="c-var">$n2</span> 2Mb 20ms DropTail
+
+<span class="c-com"># Gioi han hang doi (queue-limit)</span>
+<span class="c-var">$ns</span> queue-limit <span class="c-var">$n1</span> <span class="c-var">$n2</span> <span class="c-num">20</span>
+<span class="c-var">$ns</span> queue-limit <span class="c-var">$n2</span> <span class="c-var">$n1</span> <span class="c-num">20</span>
+
+<span class="c-com"># Dinh huong hien thi cho NAM</span>
+<span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n0</span> <span class="c-var">$n1</span> orient right
+<span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n1</span> <span class="c-var">$n2</span> orient right
+<span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n2</span> <span class="c-var">$n3</span> orient right
+<span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n1</span> <span class="c-var">$n2</span> queuePos 0.5
+
+<span class="c-com"># ---------- BUOC 3.2: (Bo qua) khong co mo hinh loi ----------</span>
+<span class="c-com"># ---------- BUOC 3.3: Routing mac dinh (Link-State) ----------</span>
+
+<span class="c-com"># ---------- BUOC 4.1: Ket noi TCP ----------</span>
+<span class="c-key">set</span> tcp [<span class="c-key">new Agent/TCP/Reno</span>]
+<span class="c-var">$tcp</span> set fid_ <span class="c-num">1</span>
+<span class="c-var">$tcp</span> set window_ <span class="c-num">32</span>
+<span class="c-var">$tcp</span> set packetSize_ <span class="c-num">1000</span>
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$n0</span> <span class="c-var">$tcp</span>
+
+<span class="c-key">set</span> sink [<span class="c-key">new Agent/TCPSink</span>]
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$n3</span> <span class="c-var">$sink</span>
+<span class="c-var">$ns</span> connect <span class="c-var">$tcp</span> <span class="c-var">$sink</span>
+
+<span class="c-com"># ---------- BUOC 4.2: Ket noi UDP ----------</span>
+<span class="c-key">set</span> udp [<span class="c-key">new Agent/UDP</span>]
+<span class="c-var">$udp</span> set fid_ <span class="c-num">2</span>
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$n0</span> <span class="c-var">$udp</span>
+
+<span class="c-key">set</span> null [<span class="c-key">new Agent/Null</span>]
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$n3</span> <span class="c-var">$null</span>
+<span class="c-var">$ns</span> connect <span class="c-var">$udp</span> <span class="c-var">$null</span>
+
+<span class="c-com"># ---------- BUOC 5.1: Nguon FTP tren TCP ----------</span>
+<span class="c-key">set</span> ftp [<span class="c-key">new Application/FTP</span>]
+<span class="c-var">$ftp</span> attach-agent <span class="c-var">$tcp</span>
+<span class="c-var">$ftp</span> set type_ FTP
+
+<span class="c-com"># ---------- BUOC 5.2: Nguon CBR tren UDP ----------</span>
+<span class="c-key">set</span> cbr [<span class="c-key">new Application/Traffic/CBR</span>]
+<span class="c-var">$cbr</span> attach-agent <span class="c-var">$udp</span>
+<span class="c-var">$cbr</span> set type_ CBR
+<span class="c-var">$cbr</span> set packet_size_ <span class="c-num">1000</span>
+<span class="c-var">$cbr</span> set rate_ <span class="c-num">1Mb</span>
+<span class="c-var">$cbr</span> set random_ <span class="c-num">false</span>
+
+<span class="c-com"># ---------- BUOC 6: Len lich &amp; chay ----------</span>
+<span class="c-var">$ns</span> at <span class="c-num">0.1</span> <span class="c-str">"$ftp start"</span>
+<span class="c-var">$ns</span> at <span class="c-num">0.1</span> <span class="c-str">"$cbr start"</span>
+<span class="c-var">$ns</span> at <span class="c-num">20.0</span> <span class="c-str">"$ftp stop"</span>
+<span class="c-var">$ns</span> at <span class="c-num">20.0</span> <span class="c-str">"$cbr stop"</span>
+<span class="c-var">$ns</span> at <span class="c-num">20.5</span> <span class="c-str">"finish"</span>
+
+<span class="c-key">puts</span> <span class="c-str">"Bat dau mo phong..."</span>
+<span class="c-var">$ns</span> run</code></pre>
+</section>
+
+<!-- ==================== 16. WIRELESS: THÔNG SỐ ==================== -->
+<section class="slide">
+  <h2>4. Ví dụ 2 — Mạng KHÔNG DÂY: Thông số đầu vào</h2>
+  <div class="grid2">
+    <div>
+      <h3>Sơ đồ tô-pô (600 m × 600 m)</h3>
+      <pre><code><span class="c-str">  (0,0)                                        (600,0)</span>
+<span class="c-com">    ┌──────────────────────────────────────────────┐</span>
+<span class="c-com">    │                                              │</span>
+<span class="c-com">    │   n0(50,100)          n3(350,300)            │</span>
+<span class="c-com">    │      ●                    ●                  │</span>
+<span class="c-com">    │                                              │</span>
+<span class="c-com">    │            n1(200,200)      n4(450,450) ●→→  │</span>
+<span class="c-com">    │                 ●                  (di động) │</span>
+<span class="c-com">    │                                              │</span>
+<span class="c-com">    │   n2(100,400)         n5(300,500) ●→→        │</span>
+<span class="c-com">    │      ●                    (di động)          │</span>
+<span class="c-com">    └──────────────────────────────────────────────┘</span>
+<span class="c-com">  (0,600)                                    (600,600)</span>
+
+<span class="c-com">  ● n0 → n3 : luồng UDP/CBR 200 Kb/s</span>
+<span class="c-com">  ● n1 → n4 : luồng TCP/FTP</span>
+<span class="c-com">  ● n4, n5  : di chuyển trong vùng mô phỏng</span></code></pre>
+
+      <div class="card accent">
+        <h4>🎯 Kịch bản</h4>
+        <p style="font-size:15.5px;margin-bottom:0">Mạng ad-hoc 802.11 với giao thức định tuyến <b>AODV</b>.
+        Các node di chuyển ⇒ tô-pô thay đổi liên tục ⇒ AODV phải tìm lại đường.
+        Mục đích: đánh giá ảnh hưởng của <b>di động</b> lên thông lượng và độ trễ.</p>
+      </div>
+    </div>
+    <div>
+      <h3>Bảng thông số đầu vào</h3>
+      <table>
+        <thead><tr><th>Thành phần</th><th>Giá trị</th></tr></thead>
+        <tbody>
+          <tr><td>Số node</td><td>6 (<code>node_(0)</code> … <code>node_(5)</code>)</td></tr>
+          <tr><td>Vùng mô phỏng</td><td>600 m × 600 m</td></tr>
+          <tr><td>Kênh</td><td><code>Channel/WirelessChannel</code></td></tr>
+          <tr><td>Mô hình lan truyền</td><td><code>Propagation/TwoRayGround</code></td></tr>
+          <tr><td>Lớp vật lý</td><td><code>Phy/WirelessPhy</code></td></tr>
+          <tr><td>MAC</td><td><code>Mac/802_11</code></td></tr>
+          <tr><td>Interface Queue</td><td><code>Queue/DropTail/PriQueue</code>, len = 50</td></tr>
+          <tr><td>Antenna</td><td><code>Antenna/OmniAntenna</code></td></tr>
+          <tr><td>Định tuyến</td><td><b>AODV</b></td></tr>
+          <tr><td>Di động</td><td>node 4, 5 di chuyển, tốc độ 20 m/s</td></tr>
+          <tr><td>Lưu lượng 1</td><td>UDP/CBR 200 Kb/s, packet 512 B, <code>n0→n3</code></td></tr>
+          <tr><td>Lưu lượng 2</td><td>TCP/FTP, <code>n1→n4</code></td></tr>
+          <tr><td>Thời gian mô phỏng</td><td>30 s</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 17. WIRELESS: CODE ==================== -->
+<section class="slide">
+  <h2>4. Ví dụ 2 — Mạng không dây: Code Tcl đầy đủ (<code>wireless.tcl</code>)</h2>
+  <pre><code><span class="c-com"># =====================================================================</span>
+<span class="c-com"># wireless.tcl — Mo phong mang khong day ad-hoc 802.11 (AODV)</span>
+<span class="c-com"># 6 node, vung 600x600 m, node 4 va 5 di dong</span>
+<span class="c-com"># =====================================================================</span>
+
+<span class="c-com"># ---------- Khai bao tham so ----------</span>
+<span class="c-key">set</span> val(chan)    Channel/WirelessChannel
+<span class="c-key">set</span> val(prop)    Propagation/TwoRayGround
+<span class="c-key">set</span> val(netif)   Phy/WirelessPhy
+<span class="c-key">set</span> val(mac)     Mac/802_11
+<span class="c-key">set</span> val(ifq)     Queue/DropTail/PriQueue
+<span class="c-key">set</span> val(ll)      LL
+<span class="c-key">set</span> val(ant)     Antenna/OmniAntenna
+<span class="c-key">set</span> val(ifqlen)  <span class="c-num">50</span>
+<span class="c-key">set</span> val(nn)      <span class="c-num">6</span>
+<span class="c-key">set</span> val(rp)      AODV
+<span class="c-key">set</span> val(x)       <span class="c-num">600</span>
+<span class="c-key">set</span> val(y)       <span class="c-num">600</span>
+<span class="c-key">set</span> val(stop)    <span class="c-num">30.0</span>
+
+<span class="c-com"># ---------- BUOC 1: Bo lap lich su kien ----------</span>
+<span class="c-key">set</span> <span class="c-var">ns</span> [<span class="c-key">new Simulator</span>]
+
+<span class="c-com"># ---------- BUOC 2: Ghi vet ----------</span>
+<span class="c-key">set</span> tracefd [<span class="c-key">open</span> wireless.tr w]
+<span class="c-var">$ns</span> trace-all <span class="c-var">$tracefd</span>
+<span class="c-key">set</span> namfd [<span class="c-key">open</span> wireless.nam w]
+<span class="c-var">$ns</span> namtrace-all-wireless <span class="c-var">$namfd</span> <span class="c-var">$val(x)</span> <span class="c-var">$val(y)</span>
+
+<span class="c-com"># ---------- Topography ----------</span>
+<span class="c-key">set</span> topo [<span class="c-key">new Topography</span>]
+<span class="c-var">$topo</span> load_flatgrid <span class="c-var">$val(x)</span> <span class="c-var">$val(y)</span>
+
+create-god <span class="c-var">$val(nn)</span>
+
+<span class="c-com"># ---------- BUOC 3.1 + 3.3: Cau hinh node ----------</span>
+<span class="c-var">$ns</span> node-config \
+    -adhocRouting <span class="c-var">$val(rp)</span> \
+    -llType      <span class="c-var">$val(ll)</span> \
+    -macType     <span class="c-var">$val(mac)</span> \
+    -ifqType     <span class="c-var">$val(ifq)</span> \
+    -ifqLen      <span class="c-var">$val(ifqlen)</span> \
+    -antType     <span class="c-var">$val(ant)</span> \
+    -propType    <span class="c-var">$val(prop)</span> \
+    -phyType     <span class="c-var">$val(netif)</span> \
+    -channelType <span class="c-var">$val(chan)</span> \
+    -topoInstance <span class="c-var">$topo</span> \
+    -agentTrace  ON \
+    -routerTrace ON \
+    -macTrace    OFF \
+    -movementTrace ON
+
+<span class="c-com"># ---------- Tao cac node ----------</span>
+<span class="c-key">for</span> {<span class="c-key">set</span> i <span class="c-num">0</span>} {<span class="c-var">$i</span> &lt; <span class="c-var">$val(nn)</span>} {<span class="c-key">incr</span> i} {
+    <span class="c-key">set</span> node_(<span class="c-var">$i</span>) [<span class="c-var">$ns</span> node]
+    <span class="c-var">$node_($i)</span> random-motion <span class="c-num">0</span>
+}
+
+<span class="c-com"># ---------- Vi tri ban dau ----------</span>
+<span class="c-var">$node_(0)</span> set X_ <span class="c-num">50.0</span>;   <span class="c-var">$node_(0)</span> set Y_ <span class="c-num">100.0</span>; <span class="c-var">$node_(0)</span> set Z_ <span class="c-num">0.0</span>
+<span class="c-var">$node_(1)</span> set X_ <span class="c-num">200.0</span>;  <span class="c-var">$node_(1)</span> set Y_ <span class="c-num">200.0</span>; <span class="c-var">$node_(1)</span> set Z_ <span class="c-num">0.0</span>
+<span class="c-var">$node_(2)</span> set X_ <span class="c-num">100.0</span>;  <span class="c-var">$node_(2)</span> set Y_ <span class="c-num">400.0</span>; <span class="c-var">$node_(2)</span> set Z_ <span class="c-num">0.0</span>
+<span class="c-var">$node_(3)</span> set X_ <span class="c-num">350.0</span>;  <span class="c-var">$node_(3)</span> set Y_ <span class="c-num">300.0</span>; <span class="c-var">$node_(3)</span> set Z_ <span class="c-num">0.0</span>
+<span class="c-var">$node_(4)</span> set X_ <span class="c-num">450.0</span>;  <span class="c-var">$node_(4)</span> set Y_ <span class="c-num">450.0</span>; <span class="c-var">$node_(4)</span> set Z_ <span class="c-num">0.0</span>
+<span class="c-var">$node_(5)</span> set X_ <span class="c-num">300.0</span>;  <span class="c-var">$node_(5)</span> set Y_ <span class="c-num">500.0</span>; <span class="c-var">$node_(5)</span> set Z_ <span class="c-num">0.0</span>
+
+<span class="c-com"># Kich thuoc node hien thi tren NAM</span>
+<span class="c-key">for</span> {<span class="c-key">set</span> i <span class="c-num">0</span>} {<span class="c-var">$i</span> &lt; <span class="c-var">$val(nn)</span>} {<span class="c-key">incr</span> i} {
+    <span class="c-var">$ns</span> initial_node_pos <span class="c-var">$node_($i)</span> <span class="c-num">30</span>
+}
+
+<span class="c-com"># ---------- Di chuyen node 4 va 5 ----------</span>
+<span class="c-var">$ns</span> at <span class="c-num">5.0</span>  <span class="c-str">"$node_(4) setdest 500.0 100.0 20.0"</span>
+<span class="c-var">$ns</span> at <span class="c-num">15.0</span> <span class="c-str">"$node_(4) setdest 100.0 500.0 20.0"</span>
+<span class="c-var">$ns</span> at <span class="c-num">5.0</span>  <span class="c-str">"$node_(5) setdest 150.0 150.0 15.0"</span>
+<span class="c-var">$ns</span> at <span class="c-num">20.0</span> <span class="c-str">"$node_(5) setdest 550.0 550.0 15.0"</span>
+
+<span class="c-com"># ---------- BUOC 4.1 + 5.1: TCP/FTP giua n1 -&gt; n4 ----------</span>
+<span class="c-key">set</span> tcp [<span class="c-key">new Agent/TCP</span>]
+<span class="c-var">$tcp</span> set fid_ <span class="c-num">1</span>
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$node_(1)</span> <span class="c-var">$tcp</span>
+
+<span class="c-key">set</span> tcpsink [<span class="c-key">new Agent/TCPSink</span>]
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$node_(4)</span> <span class="c-var">$tcpsink</span>
+<span class="c-var">$ns</span> connect <span class="c-var">$tcp</span> <span class="c-var">$tcpsink</span>
+
+<span class="c-key">set</span> ftp [<span class="c-key">new Application/FTP</span>]
+<span class="c-var">$ftp</span> attach-agent <span class="c-var">$tcp</span>
+
+<span class="c-com"># ---------- BUOC 4.2 + 5.2: UDP/CBR giua n0 -&gt; n3 ----------</span>
+<span class="c-key">set</span> udp [<span class="c-key">new Agent/UDP</span>]
+<span class="c-var">$udp</span> set fid_ <span class="c-num">2</span>
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$node_(0)</span> <span class="c-var">$udp</span>
+
+<span class="c-key">set</span> null [<span class="c-key">new Agent/Null</span>]
+<span class="c-var">$ns</span> attach-agent <span class="c-var">$node_(3)</span> <span class="c-var">$null</span>
+<span class="c-var">$ns</span> connect <span class="c-var">$udp</span> <span class="c-var">$null</span>
+
+<span class="c-key">set</span> cbr [<span class="c-key">new Application/Traffic/CBR</span>]
+<span class="c-var">$cbr</span> attach-agent <span class="c-var">$udp</span>
+<span class="c-var">$cbr</span> set packet_size_ <span class="c-num">512</span>
+<span class="c-var">$cbr</span> set rate_ <span class="c-num">200Kb</span>
+<span class="c-var">$cbr</span> set random_ <span class="c-num">false</span>
+
+<span class="c-com"># ---------- BUOC 6: Len lich &amp; chay ----------</span>
+<span class="c-var">$ns</span> at <span class="c-num">1.0</span>  <span class="c-str">"$ftp start"</span>
+<span class="c-var">$ns</span> at <span class="c-num">1.5</span>  <span class="c-str">"$cbr start"</span>
+<span class="c-var">$ns</span> at <span class="c-num">28.0</span> <span class="c-str">"$ftp stop"</span>
+<span class="c-var">$ns</span> at <span class="c-num">28.0</span> <span class="c-str">"$cbr stop"</span>
+
+<span class="c-com"># ---------- Thu tuc ket thuc ----------</span>
+<span class="c-key">proc</span> finish {} {
+    <span class="c-key">global</span> ns tracefd namfd val
+    <span class="c-var">$ns</span> flush-trace
+    <span class="c-key">close</span> <span class="c-var">$tracefd</span>
+    <span class="c-key">close</span> <span class="c-var">$namfd</span>
+    <span class="c-key">puts</span> <span class="c-str">"=== Mo phong khong day ket thuc ==="</span>
+    <span class="c-key">exec</span> /home/yourusername/ns-allineone-2.35/nam-1.15/nam wireless.nam &amp;
+    <span class="c-key">exit</span> <span class="c-num">0</span>
+}
+
+<span class="c-var">$ns</span> at <span class="c-var">$val(stop)</span> <span class="c-str">"finish"</span>
+<span class="c-var">$ns</span> run</code></pre>
+</section>
+
+<!-- ==================== 18. CHẠY MÔ PHỎNG ==================== -->
+<section class="slide">
+  <h2>Chạy mô phỏng &amp; quan sát kết quả</h2>
+  <div class="grid2">
+    <div>
+      <h3>Lệnh chạy</h3>
+      <pre><code><span class="c-com"># Chay mo phong mang co day</span>
+<span class="c-key">ns</span> wired.tcl
+
+<span class="c-com"># Chay mo phong mang khong day</span>
+<span class="c-key">ns</span> wireless.tcl
+
+<span class="c-com"># Xem hoạt ảnh (nếu chưa tự mở)</span>
+<span class="c-key">nam</span> wired.nam &amp;
+<span class="c-key">nam</span> wireless.nam &amp;</code></pre>
+
+      <h3>Kiểm tra file sinh ra</h3>
+      <pre><code><span class="c-key">ls</span> -lh *.tr *.nam
+<span class="c-key">wc</span> -l wired.tr
+<span class="c-key">head</span> -20 wired.tr</code></pre>
+
+      <h3>Vẽ đồ thị với XGraph</h3>
+      <pre><code><span class="c-com"># Ví dụ: vẽ độ lớn cửa sổ TCP theo thời gian</span>
+<span class="c-key">awk</span> <span class="c-str">'$1=="r" &amp;&amp; $4==3 &amp;&amp; $5=="tcp" {print $2, $6}'</span> \
+    wired.tr &gt; tcp_recv.dat
+
+<span class="c-key">xgraph</span> tcp_recv.dat</code></pre>
+    </div>
+    <div>
+      <div class="card accent">
+        <h4>🎬 NAM — Network Animator</h4>
+        <p style="font-size:15.5px">NAM cho phép:</p>
+        <ul style="font-size:15.5px">
+          <li><b>Play / Pause / Step</b> — xem từng bước thời gian.</li>
+          <li>Quan sát <b>gói tin di chuyển</b> trên link.</li>
+          <li>Thấy <b>hàng đợi đầy</b> và <b>gói bị drop</b> (thường hiện màu đỏ).</li>
+          <li>Theo dõi <b>node di động</b> trong mạng không dây.</li>
+          <li>Điều chỉnh <b>tốc độ phát</b> để quan sát kỹ.</li>
+        </ul>
+      </div>
+
+      <div class="card warn" style="margin-top:16px">
+        <h4>🐛 Debug nhanh</h4>
+        <ul style="font-size:15.5px;margin-bottom:0">
+          <li><b>File .tr rỗng</b> → quên <code>flush-trace</code> hoặc <code>close</code> trong <code>finish</code>.</li>
+          <li><b>Không thấy gói nào</b> → quên <code>$ns at &lt;t&gt; "$app start"</code>.</li>
+          <li><b>Chạy mãi không dừng</b> → thiếu <code>$ns at &lt;stop&gt; "finish"</code>.</li>
+          <li><b>NAM báo lỗi</b> → file .nam bị ghi đè hoặc tô-pô sai tham số.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 19. TRACE FORMAT ==================== -->
+<section class="slide">
+  <h2>Định dạng file trace — “chìa khoá” để phân tích</h2>
+  <div class="grid2">
+    <div>
+      <h3>Mạng có dây (<code>wired.tr</code>)</h3>
+      <pre><code><span class="c-com">event time  from to  type  size  flags  fid  src  dst  seq  pktid</span>
++  0.100000  0    1   tcp   1040  -------  1   0.0  3.0   1    1
+-  0.100000  0    1   tcp   1040  -------  1   0.0  3.0   1    1
+r  0.102000  1    2   tcp   1040  -------  1   0.0  3.0   1    1
++  0.120000  1    2   cbr   1000  -------  2   0.0  3.0   1    2
+d  0.145000  1    2   cbr   1000  -------  2   0.0  3.0   3    5
+r  0.142000  2    3   cbr   1000  -------  2   0.0  3.0   1    2</code></pre>
+
+      <table>
+        <thead><tr><th>Ký hiệu</th><th>Ý nghĩa</th></tr></thead>
+        <tbody>
+          <tr><td><code>+</code></td><td>Gói được <b>enqueue</b> (vào hàng đợi)</td></tr>
+          <tr><td><code>-</code></td><td>Gói được <b>dequeue</b> (ra khỏi hàng đợi)</td></tr>
+          <tr><td><code>r</code></td><td>Gói được <b>nhận</b> (receive)</td></tr>
+          <tr><td><code>d</code></td><td>Gói bị <b>drop</b> (mất)</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Các cột quan trọng</h4>
+      <ul style="font-size:15.5px">
+        <li><code>$1</code> — loại sự kiện</li>
+        <li><code>$2</code> — thời gian (giây)</li>
+        <li><code>$3</code>, <code>$4</code> — node nguồn / đích</li>
+        <li><code>$5</code> — loại gói (<code>tcp</code>, <code>cbr</code>, <code>ack</code>)</li>
+        <li><code>$6</code> — kích thước gói (byte)</li>
+        <li><code>$8</code> — flow id</li>
+        <li><code>$12</code> — mã gói (packet id) — <b>dùng để khớp gửi/nhận</b></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Mạng không dây (<code>wireless.tr</code>)</h3>
+      <p style="font-size:15.5px">Định dạng <b>khác</b> — có thêm cột node và tầng:</p>
+      <pre><code><span class="c-com">event time  node  layer  flags  ...  type  size  ...</span>
+s  1.500000  0  AGT  ---  2  cbr  512  [0 0 0 0]
+r  1.502300  0  RTR  ---  2  cbr  512  [0 0 0 0]
+s  1.502500  0  MAC  ---  2  cbr  512  [0 0 0 0]
+r  1.510000  3  AGT  ---  2  cbr  512  [0 0 0 0]</code></pre>
+      <table>
+        <thead><tr><th>Tầng</th><th>Ý nghĩa</th></tr></thead>
+        <tbody>
+          <tr><td><code>AGT</code></td><td>Agent — tầng ứng dụng/giao vận</td></tr>
+          <tr><td><code>RTR</code></td><td>Router — tầng định tuyến (AODV)</td></tr>
+          <tr><td><code>MAC</code></td><td>Tầng MAC 802.11</td></tr>
+          <tr><td><code>PHY</code></td><td>Tầng vật lý</td></tr>
+        </tbody>
+      </table>
+      <div class="card accent" style="margin-top:14px">
+        <h4>💡 Mẹo lọc</h4>
+        <p style="font-size:15.5px;margin-bottom:0">Để đo hiệu năng đầu–cuối, chỉ lọc các dòng có
+        <code>$3 == "AGT"</code> (hoặc <code>AGT</code> ở cột 4) để tránh đếm trùng các tầng.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 20. AWK THROUGHPUT ==================== -->
+<section class="slide">
+  <h2>Phân tích với AWK (1) — Thông lượng &amp; Tỉ lệ mất gói</h2>
+  <div class="grid2">
+    <div>
+      <h3>Thông lượng (Throughput)</h3>
+      <p style="font-size:15.5px">Tính thông lượng trung bình của luồng CBR (fid = 2) đến node 3.</p>
+      <pre><code><span class="c-com"># throughput.awk</span>
+BEGIN { sum=<span class="c-num">0</span>; t0=<span class="c-num">0</span>; t1=<span class="c-num">0</span> }
+{
+  <span class="c-key">if</span> ($1==<span class="c-str">"r"</span> &amp;&amp; $4==<span class="c-num">3</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>) {
+    <span class="c-key">if</span> (t0==<span class="c-num">0</span>) t0=$2;
+    t1 = $2;
+    sum += $6;          <span class="c-com"># cộng số byte</span>
+  }
+}
+END {
+  <span class="c-key">printf</span> <span class="c-str">"Tổng byte nhận : %d\n"</span>, sum;
+  <span class="c-key">printf</span> <span class="c-str">"Khoảng thời gian: %.2f s\n"</span>, t1-t0;
+  <span class="c-key">printf</span> <span class="c-str">"Thông lượng TB  : %.3f Mbps\n"</span>, \
+         (sum*<span class="c-num">8</span>)/(t1-t0)/<span class="c-num">1e6</span>;
+}</code></pre>
+      <pre><code><span class="c-key">awk</span> -f throughput.awk wired.tr</code></pre>
+    </div>
+    <div>
+      <h3>Tỉ lệ mất gói (Packet Delivery Ratio)</h3>
+      <pre><code><span class="c-com"># pdr.awk</span>
+{
+  <span class="c-key">if</span> ($1==<span class="c-str">"+"</span> &amp;&amp; $3==<span class="c-num">0</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>) sent++;
+  <span class="c-key">if</span> ($1==<span class="c-str">"r"</span> &amp;&amp; $4==<span class="c-num">3</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>) recv++;
+  <span class="c-key">if</span> ($1==<span class="c-str">"d"</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>) drop++;
+}
+END {
+  <span class="c-key">printf</span> <span class="c-str">"Gửi      : %d gói\n"</span>, sent;
+  <span class="c-key">printf</span> <span class="c-str">"Nhận     : %d gói\n"</span>, recv;
+  <span class="c-key">printf</span> <span class="c-str">"Drop     : %d gói\n"</span>, drop;
+  <span class="c-key">printf</span> <span class="c-str">"PDR      : %.2f %%\n"</span>, recv/sent*<span class="c-num">100</span>;
+  <span class="c-key">printf</span> <span class="c-str">"Tỉ lệ mất: %.2f %%\n"</span>, (<span class="c-num">1</span>-recv/sent)*<span class="c-num">100</span>;
+}</code></pre>
+      <pre><code><span class="c-key">awk</span> -f pdr.awk wired.tr</code></pre>
+
+      <div class="card accent" style="margin-top:12px">
+        <h4>📌 Công thức</h4>
+        <p style="font-size:15.5px;margin-bottom:0">
+        <b>Throughput</b> = (Σ byte nhận × 8) / (t_end − t_start) [bps]<br>
+        <b>PDR</b> = số gói nhận / số gói gửi × 100 %<br>
+        <b>Packet loss</b> = 100 % − PDR</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 21. AWK DELAY/JITTER ==================== -->
+<section class="slide">
+  <h2>Phân tích với AWK (2) — Độ trễ &amp; Jitter</h2>
+  <div class="grid2">
+    <div>
+      <h3>Độ trễ đầu–cuối (End-to-End Delay)</h3>
+      <pre><code><span class="c-com"># delay.awk</span>
+{
+  <span class="c-com"># Ghi lại thời điểm gửi theo packet id</span>
+  <span class="c-key">if</span> ($1==<span class="c-str">"+"</span> &amp;&amp; $3==<span class="c-num">0</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>)
+      tsend[$12] = $2;
+
+  <span class="c-com"># Khi nhận được thì tính độ trễ</span>
+  <span class="c-key">if</span> ($1==<span class="c-str">"r"</span> &amp;&amp; $4==<span class="c-num">3</span> &amp;&amp; $5==<span class="c-str">"cbr"</span> &amp;&amp; ($12 <span class="c-key">in</span> tsend)) {
+      d = $2 - tsend[$12];
+      sum += d; n++;
+      <span class="c-key">if</span> (n==<span class="c-num">1</span>) { dmin=d; dmax=d; }
+      <span class="c-key">if</span> (d &lt; dmin) dmin = d;
+      <span class="c-key">if</span> (d &gt; dmax) dmax = d;
+  }
+}
+END {
+  <span class="c-key">if</span> (n==<span class="c-num">0</span>) { <span class="c-key">print</span> <span class="c-str">"Khong co goi nao nhan duoc"</span>; <span class="c-key">exit</span> }
+  <span class="c-key">printf</span> <span class="c-str">"Số gói đo được : %d\n"</span>, n;
+  <span class="c-key">printf</span> <span class="c-str">"Độ trễ trung bình: %.6f s (%.3f ms)\n"</span>, sum/n, sum/n*<span class="c-num">1000</span>;
+  <span class="c-key">printf</span> <span class="c-str">"Độ trễ nhỏ nhất : %.6f s\n"</span>, dmin;
+  <span class="c-key">printf</span> <span class="c-str">"Độ trễ lớn nhất : %.6f s\n"</span>, dmax;
+}</code></pre>
+    </div>
+    <div>
+      <h3>Jitter (độ biến thiên độ trễ)</h3>
+      <pre><code><span class="c-com"># jitter.awk</span>
+{
+  <span class="c-key">if</span> ($1==<span class="c-str">"+"</span> &amp;&amp; $3==<span class="c-num">0</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>)
+      tsend[$12] = $2;
+
+  <span class="c-key">if</span> ($1==<span class="c-str">"r"</span> &amp;&amp; $4==<span class="c-num">3</span> &amp;&amp; $5==<span class="c-str">"cbr"</span> &amp;&amp; ($12 <span class="c-key">in</span> tsend)) {
+      d = $2 - tsend[$12];
+      <span class="c-key">if</span> (have_prev) {
+          j = d - prev_d;
+          <span class="c-key">if</span> (j &lt; <span class="c-num">0</span>) j = -j;    <span class="c-com"># trị tuyệt đối</span>
+          sumj += j; n++;
+      }
+      prev_d = d; have_prev = <span class="c-num">1</span>;
+  }
+}
+END {
+  <span class="c-key">if</span> (n&gt;<span class="c-num">0</span>)
+      <span class="c-key">printf</span> <span class="c-str">"Jitter trung bình: %.6f s (%.3f ms)\n"</span>, \
+             sumj/n, sumj/n*<span class="c-num">1000</span>;
+  <span class="c-key">else</span>
+      <span class="c-key">print</span> <span class="c-str">"Khong du du lieu de tinh jitter"</span>;
+}</code></pre>
+
+      <div class="card accent" style="margin-top:10px">
+        <h4>📐 Định nghĩa Jitter</h4>
+        <p style="font-size:15.5px;margin-bottom:0">
+        <b>Jitter</b> = độ biến thiên của độ trễ giữa các gói liên tiếp.<br>
+        <code>jitter_i = |delay_i − delay_(i−1)|</code><br>
+        <b>Jitter trung bình</b> = (1/N) Σ jitter_i</p>
+      </div>
+
+      <div class="card warn" style="margin-top:12px">
+        <h4>⚠️ Lưu ý</h4>
+        <p style="font-size:15.5px;margin-bottom:0">Với mạng không dây, phải lọc đúng tầng
+        (<code>AGT</code>) và đúng node, nếu không sẽ tính trùng hoặc sai độ trễ.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 22. METRICS TỔNG HỢP ==================== -->
+<section class="slide">
+  <h2>Các chỉ số hiệu năng mạng cần đánh giá</h2>
+  <table>
+    <thead>
+      <tr><th style="width:20%">Chỉ số</th><th style="width:26%">Định nghĩa</th><th style="width:22%">Công thức</th><th>Ý nghĩa thực tiễn</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Thông lượng</b><br>(Throughput)</td>
+        <td>Lượng dữ liệu truyền thành công trong một đơn vị thời gian</td>
+        <td><code>Σ byte × 8 / Δt</code><br>(bps)</td>
+        <td>Đo khả năng đáp ứng băng thông; càng cao càng tốt</td>
+      </tr>
+      <tr>
+        <td><b>Độ trễ đầu–cuối</b><br>(End-to-End Delay)</td>
+        <td>Thời gian từ khi gói rời nguồn đến khi đến đích</td>
+        <td><code>t_recv − t_send</code><br>(s)</td>
+        <td>Ảnh hưởng trực tiếp đến trải nghiệm người dùng (VoIP, game)</td>
+      </tr>
+      <tr>
+        <td><b>Jitter</b></td>
+        <td>Độ biến thiên của độ trễ giữa các gói</td>
+        <td><code>|d_i − d_(i−1)|</code><br>(s)</td>
+        <td>Quan trọng với lưu lượng thời gian thực (video, thoại)</td>
+      </tr>
+      <tr>
+        <td><b>Tỉ lệ mất gói</b><br>(Packet Loss)</td>
+        <td>Tỉ lệ gói gửi nhưng không đến đích</td>
+        <td><code>(sent − recv)/sent × 100 %</code></td>
+        <td>Đánh giá độ tin cậy; mất nhiều ⇒ TCP giảm tốc độ</td>
+      </tr>
+      <tr>
+        <td><b>PDR</b><br>(Packet Delivery Ratio)</td>
+        <td>Tỉ lệ gói đến đích thành công</td>
+        <td><code>recv/sent × 100 %</code></td>
+        <td>Chỉ số then chốt đánh giá giao thức định tuyến ad-hoc</td>
+      </tr>
+      <tr>
+        <td><b>Overhead định tuyến</b></td>
+        <td>Số gói điều khiển / số gói dữ liệu</td>
+        <td><code>n_ctrl / n_data</code></td>
+        <td>So sánh hiệu quả AODV vs DSR vs DSDV</td>
+      </tr>
+      <tr>
+        <td><b>Độ trễ khởi tạo</b><br>(Setup Delay)</td>
+        <td>Thời gian từ khi gửi đến khi nhận gói đầu tiên</td>
+        <td><code>t_first_recv − t_start</code></td>
+        <td>Đánh giá tốc độ hội tụ của giao thức</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="card accent">
+    <h4>🎓 Gợi ý trình bày kết quả trong báo cáo</h4>
+    <p style="margin-bottom:0">Nên trình bày dưới dạng <b>bảng so sánh</b> (trước/sau tối ưu) kèm
+    <b>đồ thị theo thời gian</b> (XGraph/gnuplot) để thấy rõ xu hướng, thay vì chỉ đưa một con số trung bình.</p>
+  </div>
+</section>
+
+<!-- ==================== 23. KẾT QUẢ ĐO ĐƯỢC ==================== -->
+<section class="slide">
+  <h2>Kết quả đo được &amp; nhận xét — Lần 1</h2>
+  <div class="grid2">
+    <div>
+      <h3>Mạng CÓ DÂY</h3>
+      <table>
+        <thead><tr><th>Chỉ số</th><th>TCP/FTP</th><th>UDP/CBR</th></tr></thead>
+        <tbody>
+          <tr><td>Thông lượng TB</td><td>0.913 Mbps</td><td>0.988 Mbps</td></tr>
+          <tr><td>Độ trễ TB</td><td>75.648 ms</td><td>70.320 ms</td></tr>
+          <tr><td>Jitter TB</td><td>—</td><td>1.336 ms</td></tr>
+          <tr><td>Tỉ lệ mất gói</td><td>1.26 %</td><td>1.00 %</td></tr>
+        </tbody>
+      </table>
+      <div class="card warn">
+        <h4>Nhận xét</h4>
+        <ul style="font-size:15.5px;margin-bottom:0">
+          <li>Link n1–n2 là nút cổ chai 2 Mb/s; tổng thông lượng đo được đạt <b>1.901 Mbps</b>.</li>
+          <li>Tỉ lệ mất gói ở mức thấp: <b>1.26 %</b> với TCP và <b>1.00 %</b> với UDP.</li>
+          <li>Độ trễ TCP và UDP lần lượt là <b>75.648 ms</b> và <b>70.320 ms</b>.</li>
+          <li>Jitter của luồng UDP là <b>1.336 ms</b>; TCP không ghi nhận jitter trong bảng đo này.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <h3>Mạng KHÔNG DÂY</h3>
+      <table>
+        <thead><tr><th>Chỉ số</th><th>TCP/FTP</th><th>UDP/CBR</th></tr></thead>
+        <tbody>
+          <tr><td>Thông lượng TB</td><td>0.289 Mbps</td><td>0.069 Mbps</td></tr>
+          <tr><td>Độ trễ TB</td><td>355.001 ms</td><td>3196.642 ms</td></tr>
+          <tr><td>Jitter TB</td><td>—</td><td>68.568 ms</td></tr>
+          <tr><td>PDR</td><td>100.00 %</td><td>33.15 %</td></tr>
+        </tbody>
+      </table>
+      <div class="card warn">
+        <h4>Nhận xét</h4>
+        <ul style="font-size:15.5px;margin-bottom:0">
+          <li>TCP đạt <b>PDR 100.00 %</b>, trong khi UDP/CBR chỉ đạt <b>33.15 %</b>.</li>
+          <li>UDP có độ trễ rất cao (<b>3196.642 ms</b>) và jitter <b>68.568 ms</b>, cho thấy ảnh hưởng rõ của mạng di động.</li>
+          <li>Thông lượng đo được của TCP là <b>0.289 Mbps</b>, còn UDP là <b>0.069 Mbps</b>.</li>
+          <li>Chênh lệch PDR phản ánh việc TCP có cơ chế truyền lại, còn UDP không truyền lại gói bị mất.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="card accent" style="margin-top:14px">
+    <h4>📌 Kết luận chung</h4>
+    <p style="margin-bottom:0">Kết quả Lần 1 cho thấy mạng có dây ổn định hơn, trong khi mạng không dây chịu ảnh hưởng
+    rõ của di động và tranh chấp kênh. Phần tiếp theo đối chiếu kết quả sau khi thay đổi băng thông, hàng đợi,
+    giao thức TCP, giao thức định tuyến, tốc độ di động và tải UDP.</p>
+  </div>
+</section>
+
+<!-- ==================== 24. GIẢI PHÁP CẢI TIẾN ==================== -->
+<section class="slide">
+  <h2>5. Giải pháp điều chỉnh tham số để cải tiến hiệu năng</h2>
+  <div class="grid2">
+    <div>
+      <h3>A. Với mạng có dây</h3>
+      <div class="card">
+        <h4>1. Tăng băng thông nút cổ chai</h4>
+        <pre style="margin-bottom:6px"><code><span class="c-com"># Trước</span>
+<span class="c-var">$ns</span> duplex-link <span class="c-var">$n1</span> <span class="c-var">$n2</span> <span class="c-num">2Mb</span>  20ms DropTail
+<span class="c-com"># Sau</span>
+        <span class="c-var">$ns</span> duplex-link <span class="c-var">$n1</span> <span class="c-var">$n2</span> <span class="c-num">4Mb</span>  10ms RED</code></pre>
+                <p style="font-size:15px;margin-bottom:0">→ Kết hợp tăng băng thông và RED giúp thông lượng tăng, độ trễ giảm.</p>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>2. Tăng độ lớn hàng đợi</h4>
+        <pre style="margin-bottom:6px"><code><span class="c-var">$ns</span> queue-limit <span class="c-var">$n1</span> <span class="c-var">$n2</span> <span class="c-num">50</span>   <span class="c-com"># thay vì 20</span></code></pre>
+        <p style="font-size:15px;margin-bottom:0">→ Giảm mất gói nhưng <b>tăng độ trễ</b> (bufferbloat). Cần cân nhắc.</p>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>3. Đổi kiểu hàng đợi DropTail → RED</h4>
+        <pre style="margin-bottom:6px"><code><span class="c-com"># Lần 2: RED + queue-limit 50</span>
+<span class="c-var">$ns</span> duplex-link <span class="c-var">$n1</span> <span class="c-var">$n2</span> 4Mb 10ms RED
+<span class="c-var">$ns</span> queue-limit <span class="c-var">$n1</span> <span class="c-var">$n2</span> 50</code></pre>
+        <p style="font-size:15px;margin-bottom:0">→ Phát hiện tắc nghẽn sớm, giảm mất gói và jitter trong lần đo xác nhận.</p>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>4. Đổi biến thể TCP</h4>
+        <pre style="margin-bottom:6px"><code><span class="c-key">set</span> tcp [<span class="c-key">new Agent/TCP/Sack1</span>]</code></pre>
+        <p style="font-size:15px;margin-bottom:0">→ SACK phục hồi nhanh hơn khi mất nhiều gói trong một cửa sổ.</p>
+      </div>
+    </div>
+    <div>
+      <h3>B. Với mạng không dây</h3>
+      <div class="card">
+        <h4>1. Đổi giao thức định tuyến</h4>
+        <pre style="margin-bottom:6px"><code><span class="c-key">set</span> val(rp) DSR     <span class="c-com"># thay vì AODV</span></code></pre>
+        <p style="font-size:15px;margin-bottom:0">→ DSR ít overhead hơn trong mạng ít di động; DSDV tốt khi tô-pô ổn định.</p>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>2. Giảm tốc độ di chuyển</h4>
+        <pre style="margin-bottom:6px"><code><span class="c-var">$ns</span> at 5.0 <span class="c-str">"$node_(4) setdest 500 100 5.0"</span></code></pre>
+        <p style="font-size:15px;margin-bottom:0">→ Tô-pô ổn định hơn, ít đứt kết nối, PDR tăng.</p>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>3. Tăng vùng phủ / công suất phát</h4>
+        <pre style="margin-bottom:6px"><code><span class="c-var">$node_(0)</span> set txPower_ <span class="c-num">0.2818</span>
+<span class="c-key">set</span> val(prop) Propagation/TwoRayGround</code></pre>
+        <p style="font-size:15px;margin-bottom:0">→ Nhiều node nghe được nhau ⇒ ít bị hidden terminal.</p>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>4. Giảm tải UDP</h4>
+        <pre style="margin-bottom:6px"><code><span class="c-var">$cbr</span> set rate_ <span class="c-num">100Kb</span>   <span class="c-com"># thay vì 200Kb</span></code></pre>
+        <p style="font-size:15px;margin-bottom:0">→ Giảm tranh chấp kênh, cải thiện PDR và jitter cho cả hai luồng.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 25. BẢNG SO SÁNH ==================== -->
+<section class="slide">
+  <h2>So sánh trước &amp; sau khi tối ưu — Lần 1 và Lần 2</h2>
+  <div class="grid2">
+    <div>
+      <h3>Mạng CÓ DÂY</h3>
+      <table>
+        <thead><tr><th>Tham số / Chỉ số</th><th>Trước</th><th>Sau</th><th>Δ</th></tr></thead>
+        <tbody>
+          <tr><td>Băng thông n1–n2</td><td>2 Mb/s</td><td>4 Mb/s</td><td>↑</td></tr>
+          <tr><td>Queue n1–n2</td><td>20</td><td>50 (RED)</td><td>↑</td></tr>
+          <tr><td>Biến thể TCP</td><td>Reno</td><td>SACK</td><td>—</td></tr>
+          <tr><td><b>Thông lượng</b></td><td>0.913 Mbps</td><td><b>2.005 Mbps</b></td><td style="color:#86efac">+119.6 %</td></tr>
+          <tr><td><b>Độ trễ TB</b></td><td>75.648 ms</td><td><b>29.246 ms</b></td><td style="color:#86efac">−61.3 %</td></tr>
+          <tr><td><b>Jitter TB (UDP)</b></td><td>1.336 ms</td><td><b>1.108 ms</b></td><td style="color:#86efac">−17.1 %</td></tr>
+          <tr><td><b>Mất gói (TCP / UDP)</b></td><td>1.26 % / 1.00 %</td><td><b>0.58 % / 0.28 %</b></td><td style="color:#86efac">−54.0 % / −72.0 %</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>Mạng KHÔNG DÂY</h3>
+      <table>
+        <thead><tr><th>Tham số / Chỉ số</th><th>Trước</th><th>Sau</th><th>Δ</th></tr></thead>
+        <tbody>
+          <tr><td>Giao thức định tuyến</td><td>AODV</td><td>DSR</td><td>—</td></tr>
+          <tr><td>Tốc độ di động</td><td>20 m/s</td><td>5 m/s</td><td>↓</td></tr>
+          <tr><td>Tải CBR</td><td>200 Kb/s</td><td>100 Kb/s</td><td>↓</td></tr>
+          <tr><td><b>Thông lượng (TCP / UDP)</b></td><td>0.289 / 0.069 Mbps</td><td><b>0.291 / 0.068 Mbps</b></td><td style="color:#86efac">+0.7 % / −1.4 %</td></tr>
+          <tr><td><b>Độ trễ TB (TCP / UDP)</b></td><td>355.001 / 3196.642 ms</td><td><b>443.900 / 2244.100 ms</b></td><td style="color:#fbbf24">+25.0 % / −29.8 %</td></tr>
+          <tr><td><b>Jitter TB (UDP)</b></td><td>68.568 ms</td><td><b>55.982 ms</b></td><td style="color:#86efac">−18.4 %</td></tr>
+          <tr><td><b>PDR (TCP / UDP)</b></td><td>100.00 % / 33.15 %</td><td><b>100.00 % / 65.84 %</b></td><td style="color:#86efac">0 % / +32.69 %</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card ok" style="margin-top:14px">
+    <h4>✅ Kết luận</h4>
+    <p style="margin-bottom:0">Với mạng có dây, thay đổi băng thông, hàng đợi và TCP giúp thông lượng tăng
+    <b>119.6 %</b>, độ trễ giảm <b>61.3 %</b> và mất gói giảm ở cả hai luồng. Với mạng không dây,
+    DSR và tải UDP thấp hơn giúp PDR UDP tăng <b>32.69 %</b>, độ trễ UDP giảm <b>29.8 %</b> và jitter giảm
+    <b>18.4 %</b>; tuy nhiên độ trễ TCP tăng <b>25.0 %</b> và thông lượng gần như không đổi.
+    Đây là kết quả thực nghiệm cần được trình bày trung thực, thay vì kết luận mọi chỉ số đều cải thiện.</p>
+  </div>
+</section>
+
+<!-- ==================== 26. BÀI TẬP / DEMO ==================== -->
+<section class="slide">
+  <h2>6. Bài tập thực hành &amp; Demo</h2>
+  <div class="grid2">
+    <div>
+      <h3>📝 Bài tập bắt buộc</h3>
+      <div class="step"><div class="num">1</div><div class="body"><strong>Kiểm tra môi trường NS-2</strong><span>Đảm bảo lệnh <code>ns</code> và <code>nam</code> đã sẵn sàng trước khi thực hành.</span></div></div>
+      <div class="step"><div class="num">2</div><div class="body"><strong>Xây dựng mạng có dây</strong><span>4 node, 2 luồng TCP + UDP, nút cổ chai 2 Mb/s. Ghi rõ bảng thông số.</span></div></div>
+      <div class="step"><div class="num">3</div><div class="body"><strong>Xây dựng mạng không dây</strong><span>6 node ad-hoc AODV, 2 node di động. Ghi rõ bảng thông số.</span></div></div>
+      <div class="step"><div class="num">4</div><div class="body"><strong>Chạy mô phỏng 20–30 s</strong><span>Xuất file .tr và .nam, mở NAM quan sát.</span></div></div>
+      <div class="step"><div class="num">5</div><div class="body"><strong>Viết script AWK</strong><span>Tính thông lượng, độ trễ, jitter, PDR, tỉ lệ mất gói cho cả 2 mạng.</span></div></div>
+      <div class="step"><div class="num">6</div><div class="body"><strong>Đề xuất &amp; kiểm chứng tối ưu</strong><span>Thay đổi ít nhất 2 tham số, chạy lại, lập bảng so sánh trước–sau.</span></div></div>
+    </div>
+    <div>
+      <h3>🎬 Kịch bản demo trực tiếp (5–7 phút)</h3>
+      <div class="card accent">
+        <ol style="font-size:15.5px;margin-bottom:0">
+          <li><b>Mở terminal</b> — chạy <code>ns wired.tcl</code>.</li>
+          <li><b>NAM tự động mở</b> — nhấn <em>Play</em>, cho sinh viên xem gói tin chạy.</li>
+          <li><b>Chỉ vào link n1–n2</b> — giải thích đây là nút cổ chai, gói bắt đầu bị drop (màu đỏ).</li>
+          <li><b>Mở file <code>wired.tr</code></b> bằng <code>head</code> — chỉ ra các dòng <code>d</code> (drop).</li>
+          <li><b>Chạy script AWK</b> — in ra thông lượng, độ trễ, PDR ngay trên màn hình.</li>
+          <li><b>Sửa 1 tham số</b> (băng thông 2→4 Mb/s), chạy lại, so sánh kết quả trực tiếp.</li>
+          <li><b>Chuyển sang <code>wireless.tcl</code></b> — cho thấy node di động và AODV tìm đường.</li>
+        </ol>
+      </div>
+
+      <h3 style="margin-top:18px">🧪 Bài tập nâng cao (tự chọn)</h3>
+      <div class="card">
+        <ul style="font-size:15.5px;margin-bottom:0">
+          <li>So sánh <b>AODV vs DSR vs DSDV</b> với cùng kịch bản di động.</li>
+          <li>Khảo sát ảnh hưởng của <b>tỉ lệ lỗi</b> (<code>rate_</code>) lên thông lượng TCP.</li>
+          <li>So sánh <b>DropTail vs RED vs FQ</b> khi mạng tắc nghẽn.</li>
+          <li>Vẽ đồ thị <b>cửa sổ TCP theo thời gian</b> bằng XGraph.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 27. TỔNG KẾT ==================== -->
+<section class="slide">
+  <h2>Tổng kết</h2>
+  <div class="grid3">
+    <div class="card accent">
+      <h4>📘 Lý thuyết</h4>
+      <ul style="font-size:15.5px;margin-bottom:0">
+        <li>NS-2 là mô phỏng sự kiện rời rạc.</li>
+        <li>6 bước mô phỏng theo bài giảng.</li>
+        <li>2 bước bổ sung: chạy &amp; phân tích.</li>
+        <li>Trace file là nguồn dữ liệu để đo hiệu năng.</li>
+      </ul>
+    </div>
+    <div class="card accent">
+      <h4>🛠️ Thực hành</h4>
+      <ul style="font-size:15.5px;margin-bottom:0">
+        <li>Chuẩn bị môi trường chạy NS-2.</li>
+        <li>Viết kịch bản Tcl cho wired &amp; wireless.</li>
+        <li>Chạy mô phỏng, xem NAM.</li>
+        <li>Phân tích trace bằng AWK.</li>
+      </ul>
+    </div>
+    <div class="card accent">
+      <h4>📊 Đánh giá</h4>
+      <ul style="font-size:15.5px;margin-bottom:0">
+        <li>Đo thông lượng, độ trễ, jitter, PDR.</li>
+        <li>Lập bảng so sánh trước–sau tối ưu.</li>
+        <li>Đề xuất giải pháp cải tiến.</li>
+        <li>Kết luận về quan hệ nhân–quả.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card ok" style="margin-top:24px">
+    <h4>🎓 Kiến thức sinh viên thu được</h4>
+    <p style="margin-bottom:0">Sau bài lab này, sinh viên <b>hiểu được nguyên lý mô phỏng mạng</b>,
+    <b>biết cách xây dựng một mạng ảo hoàn chỉnh</b> từ tô-pô đến lưu lượng,
+    <b>biết cách đo và phân tích các chỉ số hiệu năng</b>, và quan trọng nhất là
+    <b>biết cách điều chỉnh tham số để cải thiện hiệu năng mạng</b> — kỹ năng cốt lõi
+    của người làm mạng máy tính.</p>
+  </div>
+
+  <h3 style="margin-top:26px">📚 Tài liệu tham khảo</h3>
+  <ul style="font-size:15.5px">
+    <li>PGS. TS. Nguyễn Đình Việt — <b>“Đánh giá hiệu năng mạng máy tính”</b>, Trường ĐHCN, ĐHQGHN (2008), mục 4.4.</li>
+    <li><b>The ns Manual</b> — Kevin Fall, Kannan Varadhan (UC Berkeley / USC ISI).</li>
+    <li><b>NS-2 official site</b>: http://www.isi.edu/nsnam/ns/</li>
+    <li>Altman &amp; Jiménez — <b>NS Simulator for Beginners</b>, Morgan &amp; Claypool (2012).</li>
+    <li>Issariyakul &amp; Hossain — <b>Introduction to Network Simulator NS2</b>, Springer (2012).</li>
+  </ul>
+</section>
+
+<!-- ==================== 28. CẢM ƠN ==================== -->
+<section class="slide">
+  <div class="title-slide" style="align-items:center;text-align:center">
+    <div class="title-tag">Hết bài thuyết trình</div>
+    <h1 style="font-size:52px;margin-bottom:24px">Cảm ơn thầy và các bạn<br>đã lắng nghe!</h1>
+    <p class="sub" style="text-align:center;margin-bottom:40px">
+      Mọi câu hỏi và góp ý xin gửi về phần thảo luận.
+    </p>
+    <div class="meta" style="border-left:none;border-top:3px solid #22d3ee;padding-left:0;padding-top:18px;text-align:center">
+      <b>Lab mô phỏng mạng với NS-2</b><br>
+      Mạng có dây &amp; Mạng không dây — Đánh giá hiệu năng và tối ưu tham số
+    </div>
+  </div>
+</section>
+
+</div>
+
+<!-- ==================== NAV ==================== -->
+<div class="counter"><span id="cur">1</span> / <span id="tot">28</span></div>
+
+<div class="nav">
+  <button id="prev" title="Slide trước">‹</button>
+  <button id="next" title="Slide sau">›</button>
+</div>
+
+<script>
+(function(){
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total  = slides.length;
+  let idx = 0;
+
+  const bar   = document.getElementById('bar');
+  const cur   = document.getElementById('cur');
+  const tot   = document.getElementById('tot');
+  const prevB = document.getElementById('prev');
+  const nextB = document.getElementById('next');
+
+  tot.textContent = total;
+
+  function show(n){
+    n = Math.max(0, Math.min(total - 1, n));
+    slides[idx].classList.remove('active');
+    idx = n;
+    slides[idx].classList.add('active');
+    slides[idx].scrollTop = 0;
+
+    bar.style.width = ((idx + 1) / total * 100) + '%';
+    cur.textContent = idx + 1;
+
+    prevB.disabled = idx === 0;
+    nextB.disabled = idx === total - 1;
+
+    /* cập nhật hash để có thể share link tới slide */
+    history.replaceState(null, '', '#' + (idx + 1));
+  }
+
+  prevB.addEventListener('click', () => show(idx - 1));
+  nextB.addEventListener('click', () => show(idx + 1));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+      e.preventDefault(); show(idx + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault(); show(idx - 1);
+    } else if (e.key === 'Home') {
+      show(0);
+    } else if (e.key === 'End') {
+      show(total - 1);
+    } else if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(()=>{});
+      } else {
+        document.exitFullscreen();
+      }
+    }
+  });
+
+  /* hỗ trợ vuốt trên thiết bị cảm ứng */
+  let tx = 0, ty = 0;
+  document.addEventListener('touchstart', (e) => {
+    tx = e.changedTouches[0].clientX;
+    ty = e.changedTouches[0].clientY;
+  }, {passive:true});
+  document.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - tx;
+    const dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0) show(idx + 1); else show(idx - 1);
+    }
+  }, {passive:true});
+
+  /* mở đúng slide nếu URL có hash */
+  const h = parseInt(location.hash.replace('#',''), 10);
+  show(Number.isFinite(h) && h >= 1 && h <= total ? h - 1 : 0);
+})();
+</script>
+
+</body>
+</html>
