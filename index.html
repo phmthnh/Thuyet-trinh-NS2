@@ -259,7 +259,7 @@
       Đánh giá hiệu năng và tối ưu tham số
     </p>
     <div class="meta">
-      
+
     </div>
   </div>
 </section>
@@ -378,7 +378,7 @@
       <div class="step"><div class="num">7</div><div class="body"><strong>Chạy &amp; quan sát</strong><span><code>ns script.tcl</code>, mở NAM xem hoạt ảnh, kiểm tra file trace sinh ra.</span></div></div>
       <div class="step"><div class="num">8</div><div class="body"><strong>Phân tích &amp; đánh giá</strong><span>dùng <code>awk</code>/<code>grep</code> trích xuất thông lượng, độ trễ, jitter, PDR → vẽ đồ thị → kết luận &amp; tối ưu.</p></span></div></div>
     </div>
-  
+
   </div>
 </section>
 
@@ -809,22 +809,19 @@
   <h2>3. Ví dụ 1 — Mạng CÓ DÂY: Thông số đầu vào</h2>
   <div class="grid2">
     <div>
-      <h3>Sơ đồ tô-pô</h3>
-      <pre><code><span class="c-com">   TCP/FTP (n0→n3)              UDP/CBR (n0→n3)</span>
-        │                             │
-        ▼                             ▼
-<span class="c-str">   ┌────┐   10Mb, 2ms    ┌────┐   2Mb, 20ms   ┌────┐   10Mb, 2ms   ┌────┐</span>
-<span class="c-str">   │ n0 │───────────────►│ n1 │──────────────►│ n2 │──────────────►│ n3 │</span>
-<span class="c-str">   └────┘   DropTail      └────┘   DropTail     └────┘   DropTail     └────┘</span>
-              qlimit 50              qlimit 20             qlimit 50
-                                    ▲
-                              <span class="c-com">NÚT CỔ CHAI (bottleneck)</span></code></pre>
+      <h3>Sơ đồ tô-pô (mạng doanh nghiệp/campus)</h3>
+      <pre><code>c0 (Web)   ─┐                                 ┌─ s0 (Web)
+c1 (FTP)   ─┤                                 ├─ s1 (FTP)
+c2 (VoIP)  ─┼─ r1 ══════ 5Mb, 20ms ══════ r2 ─┼─ s2 (VoIP)
+c3 (Video) ─┘   ╲                         ╱   └─ s3 (Video)
+                 ╲___ r3 (2Mb, 30ms) ___╱</code></pre>
+      <p style="font-size:14px;margin:-6px 0 12px">Link truy nhập 10 Mb/s · 2 ms. Link chính r1–r2 là <b>nút cổ chai</b>.</p>
 
       <div class="card accent">
         <h4>🎯 Kịch bản</h4>
-        <p style="font-size:15.5px;margin-bottom:0">Hai luồng lưu lượng cùng đi qua <b>nút cổ chai n1–n2</b>
-        (chỉ 2 Mb/s) trong khi các link biên là 10 Mb/s ⇒ tạo ra <b>tắc nghẽn</b>.
-        Mục đích: quan sát cách TCP phản ứng với tắc nghẽn và ảnh hưởng lên luồng UDP.</p>
+        <p style="font-size:15.5px;margin-bottom:0">4 loại lưu lượng (Web, FTP, VoIP, Video) cùng đi qua <b>link chính r1–r2 (5 Mb/s)</b>.
+        Lúc <b>25 s</b> link chính đứt, định tuyến DV chuyển sang đường dự phòng r3 (2 Mb/s); lúc <b>40 s</b> link phục hồi.
+        Mục đích: so sánh hàng đợi <b>DropTail</b> (Lần 1) và <b>RED</b> (Lần 2) trên <b>cùng một tải</b> (cùng seed).</p>
       </div>
     </div>
     <div>
@@ -832,16 +829,17 @@
       <table>
         <thead><tr><th>Thành phần</th><th>Giá trị</th></tr></thead>
         <tbody>
-          <tr><td>Số node</td><td>4 — <code>n0, n1, n2, n3</code></td></tr>
-          <tr><td>Link <code>n0–n1</code></td><td>10 Mb/s · 2 ms · DropTail · queue 50</td></tr>
-          <tr><td><b>Link <code>n1–n2</code></b></td><td><b>2 Mb/s · 20 ms · DropTail · queue 20</b></td></tr>
-          <tr><td>Link <code>n2–n3</code></td><td>10 Mb/s · 2 ms · DropTail · queue 50</td></tr>
-          <tr><td>Giao thức vận tải</td><td>TCP (Reno) + UDP</td></tr>
-          <tr><td>Ứng dụng 1</td><td>FTP trên TCP, <code>n0 → n3</code></td></tr>
-          <tr><td>Ứng dụng 2</td><td>CBR 1 Mb/s, packet 1000 B, UDP, <code>n0 → n3</code></td></tr>
-          <tr><td>Định tuyến</td><td>Mặc định (Link-State)</td></tr>
-          <tr><td>Mô hình lỗi</td><td>Không (link có dây)</td></tr>
-          <tr><td>Thời gian mô phỏng</td><td>20 s</td></tr>
+          <tr><td>Số node</td><td>11 — <code>c0–c3, r1–r3, s0–s3</code></td></tr>
+          <tr><td>Link truy nhập</td><td>10 Mb/s · 2 ms · DropTail</td></tr>
+          <tr><td><b>Link chính <code>r1–r2</code></b></td><td><b>5 Mb/s · 20 ms · DropTail / RED · queue 50</b></td></tr>
+          <tr><td>Link dự phòng <code>r1–r3–r2</code></td><td>2 Mb/s · 30 ms · DropTail · queue 30</td></tr>
+          <tr><td>RED</td><td>thresh 5 · maxthresh 15 · q_weight 0.002 · gentle</td></tr>
+          <tr><td>Web (fid 1)</td><td>TCP NewReno, <code>c0→s0</code>, Pareto TB 20 gói, đến Exp TB 1 s</td></tr>
+          <tr><td>FTP (fid 2)</td><td>TCP Sack1, <code>c1→s1</code>, window 40</td></tr>
+          <tr><td>VoIP (fid 3)</td><td>5 cuộc gọi 2 chiều <code>c2↔s2</code>, UDP/CBR 160 B mỗi 20 ms</td></tr>
+          <tr><td>Video (fid 4)</td><td>UDP <code>c3→s3</code>, 1000 B, 1.2 Mb/s, bật/tắt Exp (0.5 s / 0.3 s)</td></tr>
+          <tr><td>Định tuyến · Lỗi</td><td>DV · 0.5 % gói trên link r3→r2</td></tr>
+          <tr><td>Thời gian · Seed</td><td>60 s · 10 seed (1–10) cho mỗi loại hàng đợi</td></tr>
         </tbody>
       </table>
     </div>
@@ -850,100 +848,47 @@
 
 <!-- ==================== 15. WIRED: CODE ==================== -->
 <section class="slide">
-  <h2>3. Ví dụ 1 — Mạng có dây: Code Tcl đầy đủ (<code>wired.tcl</code>)</h2>
-  <pre><code><span class="c-com"># =====================================================================</span>
-<span class="c-com"># wired.tcl — Mo phong mang co day: n0 -- n1 -- n2 -- n3</span>
-<span class="c-com"># Luu luong: TCP/FTP + UDP/CBR di qua nut co chai n1-n2 (2Mb, 20ms)</span>
-<span class="c-com"># =====================================================================</span>
+  <h2>3. Ví dụ 1 — Mạng có dây: Code Tcl (<code>wired.tcl</code>, trích đoạn chính)</h2>
+  <pre><code><span class="c-com"># wired.tcl - Mo phong mang doanh nghiep: so sanh DropTail va RED</span>
+<span class="c-com"># Chay: ns wired.tcl &lt;RED|DropTail&gt; &lt;seed&gt;        (rut gon, file day du ~300 dong)</span>
+<span class="c-key">set</span> qtype [lindex <span class="c-var">$argv</span> <span class="c-num">0</span>];  <span class="c-key">set</span> seed [lindex <span class="c-var">$argv</span> <span class="c-num">1</span>]
+<span class="c-key">set</span> simTime <span class="c-num">60.0</span>
+<span class="c-key">set</span> <span class="c-key">ns</span> [<span class="c-key">new</span> Simulator]
+<span class="c-key">ns</span>-random <span class="c-var">$seed</span>                                    ;<span class="c-com"># RNG mac dinh (RED dung)</span>
+<span class="c-key">set</span> rngVid [<span class="c-key">new</span> RNG]; <span class="c-var">$rngVid</span> seed [<span class="c-key">expr</span> <span class="c-var">$seed</span>*<span class="c-num">10</span>+<span class="c-num">2</span>]  ;<span class="c-com"># RNG rieng cho tung nguon</span>
 
-<span class="c-com"># ---------- BUOC 1: Tao bo lap lich su kien ----------</span>
-<span class="c-key">set</span> <span class="c-var">ns</span> [<span class="c-key">new Simulator</span>]
-<span class="c-var">$ns</span> color <span class="c-num">1</span> Blue
-<span class="c-var">$ns</span> color <span class="c-num">2</span> Red
-
-<span class="c-com"># ---------- BUOC 2: Ghi vet su kien ----------</span>
-<span class="c-key">set</span> tracefile [<span class="c-key">open</span> wired.tr w]
+<span class="c-key">set</span> tracefile [open wired_<span class="c-var">${qtype}</span>_<span class="c-var">${seed}</span>.tr w]
 <span class="c-var">$ns</span> trace-all <span class="c-var">$tracefile</span>
-<span class="c-key">set</span> namfile [<span class="c-key">open</span> wired.nam w]
-<span class="c-var">$ns</span> namtrace-all <span class="c-var">$namfile</span>
+<span class="c-var">$ns</span> rtproto DV
 
-<span class="c-com"># ---------- Thu tuc ket thuc ----------</span>
-<span class="c-key">proc</span> finish {} {
-    <span class="c-key">global</span> ns tracefile namfile
-    <span class="c-var">$ns</span> flush-trace
-    <span class="c-key">close</span> <span class="c-var">$tracefile</span>
-    <span class="c-key">close</span> <span class="c-var">$namfile</span>
-    <span class="c-key">puts</span> <span class="c-str">"=== Mo phong ket thuc ==="</span>
-    <span class="c-key">exec</span> /home/yourusername/ns-allineone-2.35/nam-1.15/nam wired.nam &amp;
-    <span class="c-key">exit</span> <span class="c-num">0</span>
-}
+<span class="c-com"># Tham so RED</span>
+Queue/RED <span class="c-key">set</span> thresh_ <span class="c-num">5</span>
+Queue/RED <span class="c-key">set</span> maxthresh_ <span class="c-num">15</span>
+Queue/RED <span class="c-key">set</span> q_weight_ <span class="c-num">0.002</span>
+Queue/RED <span class="c-key">set</span> gentle_ true
 
-<span class="c-com"># ---------- BUOC 3.1: Thiet lap to-po ----------</span>
-<span class="c-key">set</span> n0 [<span class="c-var">$ns</span> node]
-<span class="c-key">set</span> n1 [<span class="c-var">$ns</span> node]
-<span class="c-key">set</span> n2 [<span class="c-var">$ns</span> node]
-<span class="c-key">set</span> n3 [<span class="c-var">$ns</span> node]
+<span class="c-com"># Link truy nhap 10Mb/2ms; link chinh 5Mb/20ms (hang doi = qtype)</span>
+<span class="c-key">foreach</span> c [list <span class="c-var">$c0</span> <span class="c-var">$c1</span> <span class="c-var">$c2</span> <span class="c-var">$c3</span>] { <span class="c-var">$ns</span> duplex-link <span class="c-var">$c</span> <span class="c-var">$r1</span> 10Mb 2ms DropTail }
+<span class="c-key">foreach</span> s [list <span class="c-var">$s0</span> <span class="c-var">$s1</span> <span class="c-var">$s2</span> <span class="c-var">$s3</span>] { <span class="c-var">$ns</span> duplex-link <span class="c-var">$r2</span> <span class="c-var">$s</span> 10Mb 2ms DropTail }
+<span class="c-var">$ns</span> duplex-link <span class="c-var">$r1</span> <span class="c-var">$r2</span> 5Mb 20ms <span class="c-var">$qtype</span>
+<span class="c-var">$ns</span> queue-limit <span class="c-var">$r1</span> <span class="c-var">$r2</span> <span class="c-num">50</span>
+<span class="c-com"># Link du phong r1-r3-r2: 2Mb/30ms</span>
+<span class="c-var">$ns</span> duplex-link <span class="c-var">$r1</span> <span class="c-var">$r3</span> 2Mb 30ms DropTail
+<span class="c-var">$ns</span> duplex-link <span class="c-var">$r3</span> <span class="c-var">$r2</span> 2Mb 30ms DropTail
 
-<span class="c-com"># Link bien: 10 Mb/s, 2 ms, DropTail</span>
-<span class="c-var">$ns</span> duplex-link <span class="c-var">$n0</span> <span class="c-var">$n1</span> 10Mb 2ms DropTail
-<span class="c-var">$ns</span> duplex-link <span class="c-var">$n2</span> <span class="c-var">$n3</span> 10Mb 2ms DropTail
-<span class="c-com"># Link co chai: 2 Mb/s, 20 ms, DropTail</span>
-<span class="c-var">$ns</span> duplex-link <span class="c-var">$n1</span> <span class="c-var">$n2</span> 2Mb 20ms DropTail
+<span class="c-com"># Dut / phuc hoi link chinh</span>
+<span class="c-var">$ns</span> rtmodel-at <span class="c-num">25.0</span> down <span class="c-var">$r1</span> <span class="c-var">$r2</span>
+<span class="c-var">$ns</span> rtmodel-at <span class="c-num">40.0</span> up   <span class="c-var">$r1</span> <span class="c-var">$r2</span>
 
-<span class="c-com"># Gioi han hang doi (queue-limit)</span>
-<span class="c-var">$ns</span> queue-limit <span class="c-var">$n1</span> <span class="c-var">$n2</span> <span class="c-num">20</span>
-<span class="c-var">$ns</span> queue-limit <span class="c-var">$n2</span> <span class="c-var">$n1</span> <span class="c-num">20</span>
+<span class="c-com"># FTP (fid 2): TCP Sack1, c1 -&gt; s1</span>
+<span class="c-key">set</span> tcpBulk [<span class="c-key">new</span> Agent/TCP/Sack1];  <span class="c-var">$tcpBulk</span> <span class="c-key">set</span> fid_ <span class="c-num">2</span>
+<span class="c-com"># VoIP (fid 3): 5 cuoc goi 2 chieu, CBR 160 B moi 20 ms</span>
+<span class="c-var">$vc</span>(<span class="c-var">$i</span>) <span class="c-key">set</span> packet_size_ <span class="c-num">160</span>;  <span class="c-var">$vc</span>(<span class="c-var">$i</span>) <span class="c-key">set</span> interval_ <span class="c-num">0.02</span>
+<span class="c-com"># Video (fid 4): CBR 1.2 Mb/s bat/tat theo lich Exp(0.5 s / 0.3 s)</span>
+<span class="c-var">$vid</span> <span class="c-key">set</span> rate_ <span class="c-num">1</span>.2Mb;  <span class="c-var">$vid</span> <span class="c-key">set</span> packet_size_ <span class="c-num">1000</span>
 
-<span class="c-com"># Dinh huong hien thi cho NAM</span>
-<span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n0</span> <span class="c-var">$n1</span> orient right
-<span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n1</span> <span class="c-var">$n2</span> orient right
-<span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n2</span> <span class="c-var">$n3</span> orient right
-<span class="c-var">$ns</span> duplex-link-op <span class="c-var">$n1</span> <span class="c-var">$n2</span> queuePos 0.5
-
-<span class="c-com"># ---------- BUOC 3.2: (Bo qua) khong co mo hinh loi ----------</span>
-<span class="c-com"># ---------- BUOC 3.3: Routing mac dinh (Link-State) ----------</span>
-
-<span class="c-com"># ---------- BUOC 4.1: Ket noi TCP ----------</span>
-<span class="c-key">set</span> tcp [<span class="c-key">new Agent/TCP/Reno</span>]
-<span class="c-var">$tcp</span> set fid_ <span class="c-num">1</span>
-<span class="c-var">$tcp</span> set window_ <span class="c-num">32</span>
-<span class="c-var">$tcp</span> set packetSize_ <span class="c-num">1000</span>
-<span class="c-var">$ns</span> attach-agent <span class="c-var">$n0</span> <span class="c-var">$tcp</span>
-
-<span class="c-key">set</span> sink [<span class="c-key">new Agent/TCPSink</span>]
-<span class="c-var">$ns</span> attach-agent <span class="c-var">$n3</span> <span class="c-var">$sink</span>
-<span class="c-var">$ns</span> connect <span class="c-var">$tcp</span> <span class="c-var">$sink</span>
-
-<span class="c-com"># ---------- BUOC 4.2: Ket noi UDP ----------</span>
-<span class="c-key">set</span> udp [<span class="c-key">new Agent/UDP</span>]
-<span class="c-var">$udp</span> set fid_ <span class="c-num">2</span>
-<span class="c-var">$ns</span> attach-agent <span class="c-var">$n0</span> <span class="c-var">$udp</span>
-
-<span class="c-key">set</span> null [<span class="c-key">new Agent/Null</span>]
-<span class="c-var">$ns</span> attach-agent <span class="c-var">$n3</span> <span class="c-var">$null</span>
-<span class="c-var">$ns</span> connect <span class="c-var">$udp</span> <span class="c-var">$null</span>
-
-<span class="c-com"># ---------- BUOC 5.1: Nguon FTP tren TCP ----------</span>
-<span class="c-key">set</span> ftp [<span class="c-key">new Application/FTP</span>]
-<span class="c-var">$ftp</span> attach-agent <span class="c-var">$tcp</span>
-<span class="c-var">$ftp</span> set type_ FTP
-
-<span class="c-com"># ---------- BUOC 5.2: Nguon CBR tren UDP ----------</span>
-<span class="c-key">set</span> cbr [<span class="c-key">new Application/Traffic/CBR</span>]
-<span class="c-var">$cbr</span> attach-agent <span class="c-var">$udp</span>
-<span class="c-var">$cbr</span> set type_ CBR
-<span class="c-var">$cbr</span> set packet_size_ <span class="c-num">1000</span>
-<span class="c-var">$cbr</span> set rate_ <span class="c-num">1Mb</span>
-<span class="c-var">$cbr</span> set random_ <span class="c-num">false</span>
-
-<span class="c-com"># ---------- BUOC 6: Len lich &amp; chay ----------</span>
-<span class="c-var">$ns</span> at <span class="c-num">0.1</span> <span class="c-str">"$ftp start"</span>
-<span class="c-var">$ns</span> at <span class="c-num">0.1</span> <span class="c-str">"$cbr start"</span>
-<span class="c-var">$ns</span> at <span class="c-num">20.0</span> <span class="c-str">"$ftp stop"</span>
-<span class="c-var">$ns</span> at <span class="c-num">20.0</span> <span class="c-str">"$cbr stop"</span>
-<span class="c-var">$ns</span> at <span class="c-num">20.5</span> <span class="c-str">"finish"</span>
-
-<span class="c-key">puts</span> <span class="c-str">"Bat dau mo phong..."</span>
+<span class="c-var">$ns</span> at <span class="c-num">1.0</span> <span class="c-str">"$ftpBulk start"</span>
+<span class="c-var">$ns</span> at <span class="c-var">$simTime</span> <span class="c-str">"finish"</span>
 <span class="c-var">$ns</span> run</code></pre>
 </section>
 
@@ -1136,27 +1081,34 @@ create-god <span class="c-var">$val(nn)</span>
   <div class="grid2">
     <div>
       <h3>Lệnh chạy</h3>
-      <pre><code><span class="c-com"># Chay mo phong mang co day</span>
-<span class="c-key">ns</span> wired.tcl
+      <pre><code><span class="c-com"># Mang co day: cung seed cho DropTail va RED</span>
+<span class="c-key">ns</span> wired.tcl DropTail <span class="c-num">1</span>
+<span class="c-key">ns</span> wired.tcl RED <span class="c-num">1</span>
+<span class="c-key">awk</span> -f wired.<span class="c-key">awk</span> wired_RED_1.tr
 
-<span class="c-com"># Chay mo phong mang khong day</span>
+<span class="c-com"># Chay 10 seed x 2 loai hang doi</span>
+<span class="c-key">for</span> s <span class="c-key">in</span> $(<span class="c-key">seq</span> <span class="c-num">1</span> <span class="c-num">10</span>); <span class="c-key">do</span> <span class="c-key">for</span> q <span class="c-key">in</span> RED DropTail; <span class="c-key">do</span>
+  <span class="c-key">ns</span> wired.tcl <span class="c-var">$q</span> <span class="c-var">$s</span>
+  <span class="c-key">awk</span> -f wired.<span class="c-key">awk</span> wired_<span class="c-var">${q}</span>_<span class="c-var">${s}</span>.tr &gt; res_<span class="c-var">${q}</span>_<span class="c-var">${s}</span>.txt
+<span class="c-key">done</span>; <span class="c-key">done</span>
+
+<span class="c-com"># Mang khong day</span>
 <span class="c-key">ns</span> wireless.tcl
 
-<span class="c-com"># Xem hoạt ảnh (nếu chưa tự mở)</span>
-<span class="c-key">nam</span> wired.nam &amp;
-<span class="c-key">nam</span> wireless.nam &amp;</code></pre>
+<span class="c-com"># Xem hoat anh (dat useNam 1 trong wired.tcl)</span>
+<span class="c-key">nam</span> wired.<span class="c-key">nam</span> &amp;
+<span class="c-key">nam</span> wireless.<span class="c-key">nam</span> &amp;</code></pre>
 
       <h3>Kiểm tra file sinh ra</h3>
-      <pre><code><span class="c-key">ls</span> -lh *.tr *.nam
-<span class="c-key">wc</span> -l wired.tr
-<span class="c-key">head</span> -20 wired.tr</code></pre>
+      <pre><code><span class="c-key">ls</span> -lh wired_*.tr throughput_*.tr cwnd_*.tr
+<span class="c-key">wc</span> -l wired_RED_1.tr
+<span class="c-key">grep</span> -m5 <span class="c-str">"^d"</span> wired_RED_1.tr        <span class="c-com"># cac goi bi drop</span></code></pre>
 
       <h3>Vẽ đồ thị với XGraph</h3>
-      <pre><code><span class="c-com"># Ví dụ: vẽ độ lớn cửa sổ TCP theo thời gian</span>
-<span class="c-key">awk</span> <span class="c-str">'$1=="r" &amp;&amp; $4==3 &amp;&amp; $5=="tcp" {print $2, $6}'</span> \
-    wired.tr &gt; tcp_recv.dat
-
-<span class="c-key">xgraph</span> tcp_recv.dat</code></pre>
+      <pre><code><span class="c-com"># Thong luong FTP (cot 2) theo thoi gian</span>
+<span class="c-key">awk</span> '{<span class="c-key">print</span> <span class="c-var">$1</span>, <span class="c-var">$2}</span>' throughput_RED_1.tr | <span class="c-key">xgraph</span>
+<span class="c-com"># Cua so TCP cua FTP</span>
+<span class="c-key">xgraph</span> cwnd_RED_1.tr</code></pre>
     </div>
     <div>
       <div class="card accent">
@@ -1189,14 +1141,16 @@ create-god <span class="c-var">$val(nn)</span>
   <h2>Định dạng file trace — “chìa khoá” để phân tích</h2>
   <div class="grid2">
     <div>
-      <h3>Mạng có dây (<code>wired.tr</code>)</h3>
-      <pre><code><span class="c-com">event time  from to  type  size  flags  fid  src  dst  seq  pktid</span>
-+  0.100000  0    1   tcp   1040  -------  1   0.0  3.0   1    1
--  0.100000  0    1   tcp   1040  -------  1   0.0  3.0   1    1
-r  0.102000  1    2   tcp   1040  -------  1   0.0  3.0   1    1
-+  0.120000  1    2   cbr   1000  -------  2   0.0  3.0   1    2
-d  0.145000  1    2   cbr   1000  -------  2   0.0  3.0   3    5
-r  0.142000  2    3   cbr   1000  -------  2   0.0  3.0   1    2</code></pre>
+      <h3>Mạng có dây (<code>wired_RED_1.tr</code>)</h3>
+      <pre><code><span class="c-com">event time      from to type size flags   fid src dst  seq pktid</span>
++ <span class="c-num">1.04832</span>   <span class="c-num">1</span>   <span class="c-num">4</span>  tcp  <span class="c-num">1040</span> ------- <span class="c-num">2</span>   <span class="c-num">1.0</span> <span class="c-num">8.0</span>  <span class="c-num">1</span>   <span class="c-num">56</span>     <span class="c-com"># c1 -&gt; r1</span>
+- <span class="c-num">1.04832</span>   <span class="c-num">1</span>   <span class="c-num">4</span>  tcp  <span class="c-num">1040</span> ------- <span class="c-num">2</span>   <span class="c-num">1.0</span> <span class="c-num">8.0</span>  <span class="c-num">1</span>   <span class="c-num">56</span>
+r <span class="c-num">1.051152</span>  <span class="c-num">1</span>   <span class="c-num">4</span>  tcp  <span class="c-num">1040</span> ------- <span class="c-num">2</span>   <span class="c-num">1.0</span> <span class="c-num">8.0</span>  <span class="c-num">1</span>   <span class="c-num">56</span>
++ <span class="c-num">1.051152</span>  <span class="c-num">4</span>   <span class="c-num">5</span>  tcp  <span class="c-num">1040</span> ------- <span class="c-num">2</span>   <span class="c-num">1.0</span> <span class="c-num">8.0</span>  <span class="c-num">1</span>   <span class="c-num">56</span>     <span class="c-com"># r1 -&gt; r2 (nut co chai)</span>
+- <span class="c-num">1.052752</span>  <span class="c-num">4</span>   <span class="c-num">5</span>  tcp  <span class="c-num">1040</span> ------- <span class="c-num">2</span>   <span class="c-num">1.0</span> <span class="c-num">8.0</span>  <span class="c-num">1</span>   <span class="c-num">56</span>
+r <span class="c-num">1.074416</span>  <span class="c-num">4</span>   <span class="c-num">5</span>  tcp  <span class="c-num">1040</span> ------- <span class="c-num">2</span>   <span class="c-num">1.0</span> <span class="c-num">8.0</span>  <span class="c-num">1</span>   <span class="c-num">56</span>
+d <span class="c-num">5.7028</span>    <span class="c-num">4</span>   <span class="c-num">5</span>  cbr  <span class="c-num">1000</span> ------- <span class="c-num">4</span>   <span class="c-num">3.0</span> <span class="c-num">10.0</span> <span class="c-num">405</span> <span class="c-num">5104</span>   <span class="c-com"># Video bi drop o r1-&gt;r2</span>
+v <span class="c-num">25</span> link-down <span class="c-num">5</span> <span class="c-num">4</span>                                            <span class="c-com"># link chinh dut</span></code></pre>
 
       <table>
         <thead><tr><th>Ký hiệu</th><th>Ý nghĩa</th></tr></thead>
@@ -1210,14 +1164,15 @@ r  0.142000  2    3   cbr   1000  -------  2   0.0  3.0   1    2</code></pre>
 
       <h4>Các cột quan trọng</h4>
       <ul style="font-size:15.5px">
-        <li><code>$1</code> — loại sự kiện</li>
-        <li><code>$2</code> — thời gian (giây)</li>
-        <li><code>$3</code>, <code>$4</code> — node nguồn / đích</li>
-        <li><code>$5</code> — loại gói (<code>tcp</code>, <code>cbr</code>, <code>ack</code>)</li>
-        <li><code>$6</code> — kích thước gói (byte)</li>
-        <li><code>$8</code> — flow id</li>
-        <li><code>$12</code> — mã gói (packet id) — <b>dùng để khớp gửi/nhận</b></li>
+        <li><code>$3</code>, <code>$4</code> — node đầu / cuối của <b>link</b>; <code>$5</code> — loại gói (<code>tcp</code>, <code>cbr</code>, <code>ack</code>, <code>rtProtoDV</code>)</li>
+        <li><code>$8</code> — flow id: <b>1 Web · 2 FTP · 3 VoIP · 4 Video</b></li>
+        <li><code>$9</code>, <code>$10</code> — nguồn / đích cuối của gói (<code>node.port</code>)</li>
+        <li><code>$12</code> — mã gói (uid) — <b>dùng để khớp gửi/nhận</b></li>
       </ul>
+      <div class="card accent" style="margin-top:10px">
+        <p style="font-size:15px;margin-bottom:0">Node: c0–c3 = 0–3, r1 = 4, r2 = 5, r3 = 6, s0–s3 = 7–10.
+        Gói định tuyến <code>rtProtoDV</code> (fid 0) bị loại bằng điều kiện <code>$8</code> từ 1 đến 4; ACK của TCP mang cùng fid với dữ liệu nên được tính chung.</p>
+      </div>
     </div>
     <div>
       <h3>Mạng không dây (<code>wireless.tr</code>)</h3>
@@ -1250,48 +1205,44 @@ r  1.510000  3  AGT  ---  2  cbr  512  [0 0 0 0]</code></pre>
   <h2>Phân tích với AWK (1) — Thông lượng &amp; Tỉ lệ mất gói</h2>
   <div class="grid2">
     <div>
-      <h3>Thông lượng (Throughput)</h3>
-      <p style="font-size:15.5px">Tính thông lượng trung bình của luồng CBR (fid = 2) đến node 3.</p>
-      <pre><code><span class="c-com"># throughput.awk</span>
-BEGIN { sum=<span class="c-num">0</span>; t0=<span class="c-num">0</span>; t1=<span class="c-num">0</span> }
-{
-  <span class="c-key">if</span> ($1==<span class="c-str">"r"</span> &amp;&amp; $4==<span class="c-num">3</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>) {
-    <span class="c-key">if</span> (t0==<span class="c-num">0</span>) t0=$2;
-    t1 = $2;
-    sum += $6;          <span class="c-com"># cộng số byte</span>
-  }
+      <h3>Gửi / nhận / thông lượng / mất gói (theo từng fid)</h3>
+      <p style="font-size:15.5px">Trích từ <code>wired.awk</code>: ghép gửi và nhận bằng <code>uid</code>; <code>endNode</code> = {0–3, 7–10}.</p>
+      <pre><code><span class="c-key">if</span> (<span class="c-var">$8</span> &lt; <span class="c-num">1</span> || <span class="c-var">$8</span> &gt; <span class="c-num">4</span>) next                 <span class="c-com"># chi 4 loai luu luong (bo goi DV)</span>
+<span class="c-key">if</span> (<span class="c-var">$1</span> == <span class="c-str">"+"</span> &amp;&amp; !(<span class="c-var">$12</span> <span class="c-key">in</span> depTime)) {       <span class="c-com"># gui: lan "+" dau tien cua uid</span>
+  depTime[<span class="c-var">$12</span>] = <span class="c-var">$2</span>; sentCnt[<span class="c-var">$8</span>]++
 }
-END {
-  <span class="c-key">printf</span> <span class="c-str">"Tổng byte nhận : %d\n"</span>, sum;
-  <span class="c-key">printf</span> <span class="c-str">"Khoảng thời gian: %.2f s\n"</span>, t1-t0;
-  <span class="c-key">printf</span> <span class="c-str">"Thông lượng TB  : %.3f Mbps\n"</span>, \
-         (sum*<span class="c-num">8</span>)/(t1-t0)/<span class="c-num">1e6</span>;
-}</code></pre>
-      <pre><code><span class="c-key">awk</span> -f throughput.awk wired.tr</code></pre>
+<span class="c-key">if</span> (<span class="c-var">$1</span> == <span class="c-str">"r"</span> &amp;&amp; (<span class="c-var">$4</span> <span class="c-key">in</span> endNode) &amp;&amp; (<span class="c-var">$12</span> <span class="c-key">in</span> depTime)) {  <span class="c-com"># nhan tai nut dau-cuoi</span>
+  recvCnt[<span class="c-var">$8</span>]++; recvBytes[<span class="c-var">$8</span>] += <span class="c-var">$6</span>
+  <span class="c-key">if</span> (firstRecv[<span class="c-var">$8</span>] == <span class="c-str">""</span>) firstRecv[<span class="c-var">$8</span>] = <span class="c-var">$2</span>
+  <span class="c-key">if</span> (<span class="c-var">$2</span> &gt; lastRecv[<span class="c-var">$8</span>]) lastRecv[<span class="c-var">$8</span>] = <span class="c-var">$2</span>
+}
+<span class="c-com"># END: Mat(%) = (gui - nhan)/gui*100</span>
+<span class="c-com">#      T.luong = recvBytes*8/1e6 / (lastRecv - firstRecv)</span></code></pre>
+      <pre style="margin-top:0"><code><span class="c-key">awk</span> -f wired.awk wired_RED_1.tr</code></pre>
     </div>
     <div>
-      <h3>Tỉ lệ mất gói (Packet Delivery Ratio)</h3>
-      <pre><code><span class="c-com"># pdr.awk</span>
-{
-  <span class="c-key">if</span> ($1==<span class="c-str">"+"</span> &amp;&amp; $3==<span class="c-num">0</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>) sent++;
-  <span class="c-key">if</span> ($1==<span class="c-str">"r"</span> &amp;&amp; $4==<span class="c-num">3</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>) recv++;
-  <span class="c-key">if</span> ($1==<span class="c-str">"d"</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>) drop++;
+      <h3>Số gói drop theo giai đoạn (0–25 | 25–40 | 40–60 s)</h3>
+      <pre><code><span class="c-var">$1</span> == <span class="c-str">"d"</span> &amp;&amp; <span class="c-var">$8</span> &gt;= <span class="c-num">1</span> &amp;&amp; <span class="c-var">$8</span> &lt;= <span class="c-num">4</span> {
+  ph = (<span class="c-var">$2</span> &lt; <span class="c-num">25</span>) ? <span class="c-num">1</span> : ((<span class="c-var">$2</span> &lt; <span class="c-num">40</span>) ? <span class="c-num">2</span> : <span class="c-num">3</span>)   <span class="c-com"># 0-25 | 25-40 | 40-60 s</span>
+  drop[<span class="c-var">$8</span>]++; dph[<span class="c-var">$8</span>, ph]++
 }
-END {
-  <span class="c-key">printf</span> <span class="c-str">"Gửi      : %d gói\n"</span>, sent;
-  <span class="c-key">printf</span> <span class="c-str">"Nhận     : %d gói\n"</span>, recv;
-  <span class="c-key">printf</span> <span class="c-str">"Drop     : %d gói\n"</span>, drop;
-  <span class="c-key">printf</span> <span class="c-str">"PDR      : %.2f %%\n"</span>, recv/sent*<span class="c-num">100</span>;
-  <span class="c-key">printf</span> <span class="c-str">"Tỉ lệ mất: %.2f %%\n"</span>, (<span class="c-num">1</span>-recv/sent)*<span class="c-num">100</span>;
-}</code></pre>
-      <pre><code><span class="c-key">awk</span> -f pdr.awk wired.tr</code></pre>
+<span class="c-key">END</span> { <span class="c-key">for</span> (f = <span class="c-num">1</span>; f &lt;= <span class="c-num">4</span>; f++)
+  <span class="c-key">printf</span> <span class="c-str">"fid %d: drop %d (%d | %d | %d)\n"</span>, f, drop[f], dph[f,<span class="c-num">1</span>], dph[f,<span class="c-num">2</span>], dph[f,<span class="c-num">3</span>] }</code></pre>
 
       <div class="card accent" style="margin-top:12px">
         <h4>📌 Công thức</h4>
         <p style="font-size:15.5px;margin-bottom:0">
-        <b>Throughput</b> = (Σ byte nhận × 8) / (t_end − t_start) [bps]<br>
-        <b>PDR</b> = số gói nhận / số gói gửi × 100 %<br>
-        <b>Packet loss</b> = 100 % − PDR</p>
+        <b>Throughput</b> = (Σ byte nhận × 8) / (t_nhận cuối − t_nhận đầu) [bps]<br>
+        <b>Packet loss</b> = (gửi − nhận) / gửi × 100 %<br>
+        <b>Drop trực tiếp</b> = số sự kiện <code>d</code> theo từng link. Với TCP, gói mất được gửi lại bằng uid mới nên số này phản ánh mức nghẽn hơn là mất mát cuối cùng.</p>
+      </div>
+
+      <div class="card warn" style="margin-top:12px">
+        <h4>⚠️ Hai điểm dễ nhầm khi đối chiếu</h4>
+        <ul style="font-size:15px;margin-bottom:0">
+          <li>ACK của TCP mang <b>cùng fid</b> với dữ liệu nên được tính chung: số gói gửi/nhận của <b>Web, FTP</b> gồm cả dữ liệu lẫn ACK (xấp xỉ gấp đôi số gói dữ liệu). RED và DropTail dùng cùng cách tính nên so sánh vẫn công bằng.</li>
+          <li>Số “mất” trong tóm tắt Tcl (<code>nlost_</code> của LossMonitor) <b>cao hơn</b> awk (Video seed 1: 309 / 274 so với 131). Nguyên nhân: lúc đổi đường 25 s và 40 s có 13 gói đến <b>sai thứ tự</b> bị LossMonitor đếm là mất. Số của awk (theo uid) mới đúng.</li>
+        </ul>
       </div>
     </div>
   </div>
@@ -1303,66 +1254,35 @@ END {
   <div class="grid2">
     <div>
       <h3>Độ trễ đầu–cuối (End-to-End Delay)</h3>
-      <pre><code><span class="c-com"># delay.awk</span>
-{
-  <span class="c-com"># Ghi lại thời điểm gửi theo packet id</span>
-  <span class="c-key">if</span> ($1==<span class="c-str">"+"</span> &amp;&amp; $3==<span class="c-num">0</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>)
-      tsend[$12] = $2;
-
-  <span class="c-com"># Khi nhận được thì tính độ trễ</span>
-  <span class="c-key">if</span> ($1==<span class="c-str">"r"</span> &amp;&amp; $4==<span class="c-num">3</span> &amp;&amp; $5==<span class="c-str">"cbr"</span> &amp;&amp; ($12 <span class="c-key">in</span> tsend)) {
-      d = $2 - tsend[$12];
-      sum += d; n++;
-      <span class="c-key">if</span> (n==<span class="c-num">1</span>) { dmin=d; dmax=d; }
-      <span class="c-key">if</span> (d &lt; dmin) dmin = d;
-      <span class="c-key">if</span> (d &gt; dmax) dmax = d;
-  }
+      <pre><code><span class="c-key">if</span> (<span class="c-var">$1</span> == <span class="c-str">"r"</span> &amp;&amp; (<span class="c-var">$4</span> <span class="c-key">in</span> endNode) &amp;&amp; (<span class="c-var">$12</span> <span class="c-key">in</span> depTime)) {
+  delay = <span class="c-var">$2</span> - depTime[<span class="c-var">$12</span>]            <span class="c-com"># t_nhan - t_gui</span>
+  delaySum[<span class="c-var">$8</span>] += delay; delayCnt[<span class="c-var">$8</span>]++
 }
-END {
-  <span class="c-key">if</span> (n==<span class="c-num">0</span>) { <span class="c-key">print</span> <span class="c-str">"Khong co goi nao nhan duoc"</span>; <span class="c-key">exit</span> }
-  <span class="c-key">printf</span> <span class="c-str">"Số gói đo được : %d\n"</span>, n;
-  <span class="c-key">printf</span> <span class="c-str">"Độ trễ trung bình: %.6f s (%.3f ms)\n"</span>, sum/n, sum/n*<span class="c-num">1000</span>;
-  <span class="c-key">printf</span> <span class="c-str">"Độ trễ nhỏ nhất : %.6f s\n"</span>, dmin;
-  <span class="c-key">printf</span> <span class="c-str">"Độ trễ lớn nhất : %.6f s\n"</span>, dmax;
-}</code></pre>
+<span class="c-com"># END: Tre_TB = 1000 * delaySum[f] / delayCnt[f]   (ms)</span></code></pre>
     </div>
     <div>
       <h3>Jitter (độ biến thiên độ trễ)</h3>
-      <pre><code><span class="c-com"># jitter.awk</span>
-{
-  <span class="c-key">if</span> ($1==<span class="c-str">"+"</span> &amp;&amp; $3==<span class="c-num">0</span> &amp;&amp; $5==<span class="c-str">"cbr"</span>)
-      tsend[$12] = $2;
-
-  <span class="c-key">if</span> ($1==<span class="c-str">"r"</span> &amp;&amp; $4==<span class="c-num">3</span> &amp;&amp; $5==<span class="c-str">"cbr"</span> &amp;&amp; ($12 <span class="c-key">in</span> tsend)) {
-      d = $2 - tsend[$12];
-      <span class="c-key">if</span> (have_prev) {
-          j = d - prev_d;
-          <span class="c-key">if</span> (j &lt; <span class="c-num">0</span>) j = -j;    <span class="c-com"># trị tuyệt đối</span>
-          sumj += j; n++;
-      }
-      prev_d = d; have_prev = <span class="c-num">1</span>;
-  }
+      <pre><code>key = <span class="c-var">$8</span> SUBSEP <span class="c-var">$9</span> SUBSEP <span class="c-var">$10</span>          <span class="c-com"># tung cap (fid, src, dst)</span>
+<span class="c-key">if</span> (key <span class="c-key">in</span> prevR) {
+  D = (<span class="c-var">$2</span> - prevR[key]) - (depTime[<span class="c-var">$12</span>] - prevS[key])
+  <span class="c-key">if</span> (D &lt; <span class="c-num">0</span>) D = -D
+  J[key] += (D - J[key]) / <span class="c-num">16.0</span>          <span class="c-com"># RFC 3550</span>
+  jitterSum[<span class="c-var">$8</span>] += J[key]; jitterCnt[<span class="c-var">$8</span>]++
 }
-END {
-  <span class="c-key">if</span> (n&gt;<span class="c-num">0</span>)
-      <span class="c-key">printf</span> <span class="c-str">"Jitter trung bình: %.6f s (%.3f ms)\n"</span>, \
-             sumj/n, sumj/n*<span class="c-num">1000</span>;
-  <span class="c-key">else</span>
-      <span class="c-key">print</span> <span class="c-str">"Khong du du lieu de tinh jitter"</span>;
-}</code></pre>
+prevR[key] = <span class="c-var">$2</span>; prevS[key] = depTime[<span class="c-var">$12</span>]</code></pre>
 
       <div class="card accent" style="margin-top:10px">
         <h4>📐 Định nghĩa Jitter</h4>
         <p style="font-size:15.5px;margin-bottom:0">
-        <b>Jitter</b> = độ biến thiên của độ trễ giữa các gói liên tiếp.<br>
-        <code>jitter_i = |delay_i − delay_(i−1)|</code><br>
-        <b>Jitter trung bình</b> = (1/N) Σ jitter_i</p>
+        <b>Jitter</b> (RFC 3550) = độ biến thiên khoảng cách giữa các gói liên tiếp <b>của cùng một kết nối</b>.<br>
+        <code>D = (R<sub>i</sub> − R<sub>i−1</sub>) − (S<sub>i</sub> − S<sub>i−1</sub>)</code><br>
+        <code>J ← J + (|D| − J) / 16</code>; <b>Jitter TB</b> = trung bình J qua các gói</p>
       </div>
 
       <div class="card warn" style="margin-top:12px">
         <h4>⚠️ Lưu ý</h4>
-        <p style="font-size:15.5px;margin-bottom:0">Với mạng không dây, phải lọc đúng tầng
-        (<code>AGT</code>) và đúng node, nếu không sẽ tính trùng hoặc sai độ trễ.</p>
+        <p style="font-size:15.5px;margin-bottom:0">Chỉ tính tại <b>nút đầu–cuối</b> (<code>$4 in endNode</code>) để không đếm trùng các chặng trung gian.
+        Jitter phải tính <b>riêng từng kết nối</b> (fid, src, dst): VoIP có 5 cuộc gọi × 2 chiều, trộn lẫn các chuỗi sẽ cho jitter sai.</p>
       </div>
     </div>
   </div>
@@ -1391,7 +1311,7 @@ END {
       <tr>
         <td><b>Jitter</b></td>
         <td>Độ biến thiên của độ trễ giữa các gói</td>
-        <td><code>|d_i − d_(i−1)|</code><br>(s)</td>
+        <td><code>J += (|D|−J)/16</code><br>RFC 3550 (s)</td>
         <td>Quan trọng với lưu lượng thời gian thực (video, thoại)</td>
       </tr>
       <tr>
@@ -1413,42 +1333,47 @@ END {
         <td>So sánh hiệu quả AODV vs DSR vs DSDV</td>
       </tr>
       <tr>
-        <td><b>Độ trễ khởi tạo</b><br>(Setup Delay)</td>
-        <td>Thời gian từ khi gửi đến khi nhận gói đầu tiên</td>
-        <td><code>t_first_recv − t_start</code></td>
-        <td>Đánh giá tốc độ hội tụ của giao thức</td>
+        <td><b>Số gói drop</b><br>(theo giai đoạn)</td>
+        <td>Số sự kiện <code>d</code> trong trace, tách 0–25 s, 25–40 s, 40–60 s</td>
+        <td><code>count(d)</code></td>
+        <td>Cho thấy mức nghẽn ở link chính và ảnh hưởng của sự cố link 25–40 s</td>
       </tr>
     </tbody>
   </table>
   <div class="card accent">
     <h4>🎓 Gợi ý trình bày kết quả trong báo cáo</h4>
     <p style="margin-bottom:0">Nên trình bày dưới dạng <b>bảng so sánh</b> (trước/sau tối ưu) kèm
-    <b>đồ thị theo thời gian</b> (XGraph/gnuplot) để thấy rõ xu hướng, thay vì chỉ đưa một con số trung bình.</p>
+    <b>đồ thị theo thời gian</b> (XGraph/gnuplot). Với kết quả ngẫu nhiên, lấy <b>trung bình nhiều seed</b> (ở đây 10 seed) thay vì chỉ một lần chạy.</p>
   </div>
 </section>
 
 <!-- ==================== 23. KẾT QUẢ ĐO ĐƯỢC ==================== -->
 <section class="slide">
-  <h2>Kết quả đo được &amp; nhận xét — Lần 1</h2>
+  <h2>Kết quả đo được &amp; nhận xét — DropTail (Lần 1) và RED (Lần 2)</h2>
   <div class="grid2">
     <div>
-      <h3>Mạng CÓ DÂY</h3>
-      <table>
-        <thead><tr><th>Chỉ số</th><th>TCP/FTP</th><th>UDP/CBR</th></tr></thead>
+      <h3>Mạng CÓ DÂY (trung bình 10 seed)</h3>
+      <table style="font-size:14.5px">
+        <thead>
+          <tr><th rowspan="2">Chỉ số</th><th colspan="2" style="text-align:center">TCP (Web + FTP)</th><th colspan="2" style="text-align:center">UDP (VoIP + Video)</th></tr>
+          <tr><th>DropTail</th><th>RED</th><th>DropTail</th><th>RED</th></tr>
+        </thead>
         <tbody>
-          <tr><td>Thông lượng TB</td><td>0.913 Mbps</td><td>0.988 Mbps</td></tr>
-          <tr><td>Độ trễ TB</td><td>75.648 ms</td><td>70.320 ms</td></tr>
-          <tr><td>Jitter TB</td><td>—</td><td>1.336 ms</td></tr>
-          <tr><td>Tỉ lệ mất gói</td><td>1.26 %</td><td>1.00 %</td></tr>
+          <tr><td>Thông lượng (tổng)</td><td>3.181 Mb/s</td><td><b>2.644 Mb/s</b></td><td>1.371 Mb/s</td><td><b>1.368 Mb/s</b></td></tr>
+          <tr><td>Độ trễ TB</td><td>43.1 ms</td><td><b>32.2 ms</b></td><td>55.3 ms</td><td><b>43.9 ms</b></td></tr>
+          <tr><td>Jitter TB</td><td>0.48 ms</td><td><b>0.52 ms</b></td><td>1.57 ms</td><td><b>1.57 ms</b></td></tr>
+          <tr><td>Tỉ lệ mất gói</td><td>0.28 %</td><td><b>0.55 %</b></td><td>0.89 %</td><td><b>0.93 %</b></td></tr>
+
         </tbody>
       </table>
+      <p style="font-size:13px;margin:6px 0 10px">TCP gồm cả gói ACK (theo <code>wired.awk</code>). Chi tiết từng loại (Web, FTP, VoIP, Video) xem slide tiếp theo.</p>
       <div class="card warn">
         <h4>Nhận xét</h4>
-        <ul style="font-size:15.5px;margin-bottom:0">
-          <li>Link n1–n2 là nút cổ chai 2 Mb/s; tổng thông lượng đo được đạt <b>1.901 Mbps</b>.</li>
-          <li>Tỉ lệ mất gói ở mức thấp: <b>1.26 %</b> với TCP và <b>1.00 %</b> với UDP.</li>
-          <li>Độ trễ TCP và UDP lần lượt là <b>75.648 ms</b> và <b>70.320 ms</b>.</li>
-          <li>Jitter của luồng UDP là <b>1.336 ms</b>; TCP không ghi nhận jitter trong bảng đo này.</li>
+        <ul style="font-size:15px;margin-bottom:0">
+          <li><b>Độ trễ:</b> RED thấp hơn ở cả hai nhóm — TCP 43.1→32.2 ms (-25.2 %), UDP 55.3→43.9 ms (-20.5 %).</li>
+          <li><b>Thông lượng TCP</b> giảm 3.18→2.64 Mb/s (-16.9 %) vì RED drop sớm; thông lượng UDP gần như không đổi (1.37 và 1.37 Mb/s).</li>
+          <li><b>Mất gói TCP</b> tăng 0.28→0.55 %. Mất gói UDP (0.89 % và 0.93 %) và jitter của cả hai nhóm <b>chưa khác biệt rõ</b>.</li>
+          <li>82–91 % số gói VoIP bị drop rơi vào giai đoạn link chính đứt (25–40 s).</li>
         </ul>
       </div>
     </div>
@@ -1476,9 +1401,9 @@ END {
   </div>
   <div class="card accent" style="margin-top:14px">
     <h4>📌 Kết luận chung</h4>
-    <p style="margin-bottom:0">Kết quả Lần 1 cho thấy mạng có dây ổn định hơn, trong khi mạng không dây chịu ảnh hưởng
-    rõ của di động và tranh chấp kênh. Phần tiếp theo đối chiếu kết quả sau khi thay đổi băng thông, hàng đợi,
-    giao thức TCP, giao thức định tuyến, tốc độ di động và tải UDP.</p>
+    <p style="margin-bottom:0">Mạng có dây: RED giảm rõ độ trễ ở cả TCP và UDP nhưng phải đánh đổi bằng thông lượng TCP thấp hơn và mất gói TCP cao hơn, còn jitter gần như không đổi;
+    sự cố link 25–40 s là lúc VoIP mất gói nhiều nhất ở cả hai loại hàng đợi. Mạng không dây chịu ảnh hưởng rõ của di động và tranh chấp kênh.
+    Phần tiếp theo đối chiếu kết quả sau khi thay đổi hàng đợi (có dây) và giao thức định tuyến, tốc độ di động, tải UDP (không dây).</p>
   </div>
 </section>
 
@@ -1489,32 +1414,28 @@ END {
     <div>
       <h3>A. Với mạng có dây</h3>
       <div class="card">
-        <h4>1. Tăng băng thông nút cổ chai</h4>
-        <pre style="margin-bottom:6px"><code><span class="c-com"># Trước</span>
-<span class="c-var">$ns</span> duplex-link <span class="c-var">$n1</span> <span class="c-var">$n2</span> <span class="c-num">2Mb</span>  20ms DropTail
+        <h4>1. Đổi hàng đợi DropTail → RED <em></em></h4>
+        <pre style="margin-bottom:6px"><code><span class="c-com"># Truoc</span>
+<span class="c-var">$ns</span> duplex-link <span class="c-var">$r1</span> <span class="c-var">$r2</span> 5Mb 20ms DropTail
 <span class="c-com"># Sau</span>
-        <span class="c-var">$ns</span> duplex-link <span class="c-var">$n1</span> <span class="c-var">$n2</span> <span class="c-num">4Mb</span>  10ms RED</code></pre>
-                <p style="font-size:15px;margin-bottom:0">→ Kết hợp tăng băng thông và RED giúp thông lượng tăng, độ trễ giảm.</p>
+<span class="c-var">$ns</span> duplex-link <span class="c-var">$r1</span> <span class="c-var">$r2</span> 5Mb 20ms RED</code></pre>
+        <p style="font-size:15px;margin-bottom:0">→ Độ trễ giảm 18–29 %; đổi lại thông lượng FTP giảm 18 % và mất gói FTP, Video tăng.</p>
       </div>
-
       <div class="card" style="margin-top:12px">
-        <h4>2. Tăng độ lớn hàng đợi</h4>
-        <pre style="margin-bottom:6px"><code><span class="c-var">$ns</span> queue-limit <span class="c-var">$n1</span> <span class="c-var">$n2</span> <span class="c-num">50</span>   <span class="c-com"># thay vì 20</span></code></pre>
-        <p style="font-size:15px;margin-bottom:0">→ Giảm mất gói nhưng <b>tăng độ trễ</b> (bufferbloat). Cần cân nhắc.</p>
+        <h4>2. Chỉnh tham số RED <em></em></h4>
+        <pre style="margin-bottom:6px"><code>Queue/RED <span class="c-key">set</span> thresh_ <span class="c-num">10</span>
+Queue/RED <span class="c-key">set</span> maxthresh_ <span class="c-num">30</span></code></pre>
+        <p style="font-size:15px;margin-bottom:0">→ Ngưỡng cao hơn thì drop sớm ít hơn (giữ thông lượng FTP) nhưng hàng đợi dài hơn nên độ trễ tăng.</p>
       </div>
-
       <div class="card" style="margin-top:12px">
-        <h4>3. Đổi kiểu hàng đợi DropTail → RED</h4>
-        <pre style="margin-bottom:6px"><code><span class="c-com"># Lần 2: RED + queue-limit 50</span>
-<span class="c-var">$ns</span> duplex-link <span class="c-var">$n1</span> <span class="c-var">$n2</span> 4Mb 10ms RED
-<span class="c-var">$ns</span> queue-limit <span class="c-var">$n1</span> <span class="c-var">$n2</span> 50</code></pre>
-        <p style="font-size:15px;margin-bottom:0">→ Phát hiện tắc nghẽn sớm, giảm mất gói và jitter trong lần đo xác nhận.</p>
+        <h4>3. Chỉnh độ lớn hàng đợi <em></em></h4>
+        <pre style="margin-bottom:6px"><code><span class="c-var">$ns</span> queue-limit <span class="c-var">$r1</span> <span class="c-var">$r2</span> <span class="c-num">100</span>   <span class="c-com"># thay vi 50</span></code></pre>
+        <p style="font-size:15px;margin-bottom:0">→ Ít drop do tràn hàng đợi hơn nhưng <b>tăng độ trễ</b> (bufferbloat). Cần cân nhắc.</p>
       </div>
-
       <div class="card" style="margin-top:12px">
-        <h4>4. Đổi biến thể TCP</h4>
-        <pre style="margin-bottom:6px"><code><span class="c-key">set</span> tcp [<span class="c-key">new Agent/TCP/Sack1</span>]</code></pre>
-        <p style="font-size:15px;margin-bottom:0">→ SACK phục hồi nhanh hơn khi mất nhiều gói trong một cửa sổ.</p>
+        <h4>4. Tăng băng thông link dự phòng <em></em></h4>
+        <pre style="margin-bottom:6px"><code><span class="c-var">$ns</span> duplex-link <span class="c-var">$r1</span> <span class="c-var">$r3</span> 5Mb 30ms DropTail</code></pre>
+        <p style="font-size:15px;margin-bottom:0">→ VoIP bị drop dồn ở giai đoạn 25–40 s (chạy đường dự phòng 2 Mb/s), nên nâng link này kỳ vọng giảm nghẽn lúc sự cố.</p>
       </div>
     </div>
     <div>
@@ -1552,19 +1473,22 @@ END {
   <h2>So sánh trước &amp; sau khi tối ưu — Lần 1 và Lần 2</h2>
   <div class="grid2">
     <div>
-      <h3>Mạng CÓ DÂY</h3>
-      <table>
+      <h3>Mạng CÓ DÂY (DropTail → RED, TB 10 seed)</h3>
+      <table style="font-size:14px">
         <thead><tr><th>Tham số / Chỉ số</th><th>Trước</th><th>Sau</th><th>Δ</th></tr></thead>
         <tbody>
-          <tr><td>Băng thông n1–n2</td><td>2 Mb/s</td><td>4 Mb/s</td><td>↑</td></tr>
-          <tr><td>Queue n1–n2</td><td>20</td><td>50 (RED)</td><td>↑</td></tr>
-          <tr><td>Biến thể TCP</td><td>Reno</td><td>SACK</td><td>—</td></tr>
-          <tr><td><b>Thông lượng</b></td><td>0.913 Mbps</td><td><b>2.005 Mbps</b></td><td style="color:#86efac">+119.6 %</td></tr>
-          <tr><td><b>Độ trễ TB</b></td><td>75.648 ms</td><td><b>29.246 ms</b></td><td style="color:#86efac">−61.3 %</td></tr>
-          <tr><td><b>Jitter TB (UDP)</b></td><td>1.336 ms</td><td><b>1.108 ms</b></td><td style="color:#86efac">−17.1 %</td></tr>
-          <tr><td><b>Mất gói (TCP / UDP)</b></td><td>1.26 % / 1.00 %</td><td><b>0.58 % / 0.28 %</b></td><td style="color:#86efac">−54.0 % / −72.0 %</td></tr>
+          <tr><td>Hàng đợi r1–r2</td><td>DropTail</td><td>RED</td><td>—</td></tr>
+          <tr><td>queue-limit r1–r2</td><td>50</td><td>50</td><td>—</td></tr>
+          <tr><td><b>Thông lượng FTP</b></td><td>2.944 Mb/s</td><td><b>2.405 Mb/s</b></td><td style="color:#fbbf24">-18.3 %</td></tr>
+          <tr><td>Thông lượng Web / VoIP / Video</td><td>0.238 / 0.601 / 0.771</td><td>0.239 / 0.602 / 0.767</td><td>≈</td></tr>
+          <tr><td><b>Độ trễ TB</b> (Web / FTP / VoIP / Video, ms)</td><td>52.2 / 42.4 / 51.2 / 75.4</td><td><b>42.4 / 31.2 / 42.0 / 53.6</b></td><td style="color:#86efac">-18.8 / -26.4 / -18.0 / -28.9 %</td></tr>
+          <tr><td>Jitter VoIP / Video</td><td>1.52 / 1.87 ms</td><td>1.51 / 1.92 ms</td><td>≈</td></tr>
+          <tr><td><b>Mất gói FTP</b></td><td>0.18 %</td><td><b>0.44 %</b></td><td style="color:#fbbf24">+142.7 %</td></tr>
+          <tr><td><b>Mất gói Video</b></td><td>1.05 %</td><td><b>1.59 %</b></td><td style="color:#fbbf24">+51.4 %</td></tr>
+          <tr><td>Mất gói Web / VoIP</td><td>1.50 / 0.86 %</td><td>1.66 / 0.80 %</td><td>≈</td></tr>
         </tbody>
       </table>
+      <p style="font-size:13.5px;margin:6px 0 0">≈ : chênh lệch dưới 3 % hoặc không có ý nghĩa thống kê (kiểm định t ghép cặp theo seed, mức 5 %). Số liệu tính bằng <code>wired.awk</code> (Web, FTP gồm cả ACK).</p>
     </div>
     <div>
       <h3>Mạng KHÔNG DÂY</h3>
@@ -1584,8 +1508,8 @@ END {
   </div>
   <div class="card ok" style="margin-top:14px">
     <h4>✅ Kết luận</h4>
-    <p style="margin-bottom:0">Với mạng có dây, thay đổi băng thông, hàng đợi và TCP giúp thông lượng tăng
-    <b>119.6 %</b>, độ trễ giảm <b>61.3 %</b> và mất gói giảm ở cả hai luồng. Với mạng không dây,
+    <p style="margin-bottom:0">Với mạng có dây, đổi DropTail sang RED (cùng 10 seed, cùng tải) giảm độ trễ <b>18–29 %</b> ở cả bốn loại lưu lượng, jitter gần như không đổi;
+    đổi lại thông lượng FTP giảm <b>18.3 %</b> và mất gói FTP, Video tăng. Với mạng không dây,
     DSR và tải UDP thấp hơn giúp PDR UDP tăng <b>32.69 %</b>, độ trễ UDP giảm <b>29.8 %</b> và jitter giảm
     <b>18.4 %</b>; tuy nhiên độ trễ TCP tăng <b>25.0 %</b> và thông lượng gần như không đổi.
     Đây là kết quả thực nghiệm cần được trình bày trung thực, thay vì kết luận mọi chỉ số đều cải thiện.</p>
