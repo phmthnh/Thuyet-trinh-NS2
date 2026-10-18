@@ -1640,6 +1640,7 @@ Queue/RED <span class="c-key">set</span> maxthresh_ <span class="c-num">30</span
   const slides = Array.from(document.querySelectorAll('.slide'));
   const total  = slides.length;
   let idx = 0;
+  let remoteScrollUntil = 0;
 
   const bar   = document.getElementById('bar');
   const cur   = document.getElementById('cur');
@@ -1651,6 +1652,7 @@ Queue/RED <span class="c-key">set</span> maxthresh_ <span class="c-num">30</span
 
   function show(n, remote = false){
     n = Math.max(0, Math.min(total - 1, n));
+    if (remote && idx === n) return;
     slides[idx].classList.remove('active');
     idx = n;
     slides[idx].classList.add('active');
@@ -1706,10 +1708,23 @@ Queue/RED <span class="c-key">set</span> maxthresh_ <span class="c-num">30</span
   /* mở đúng slide nếu URL có hash */
   const h = parseInt(location.hash.replace('#',''), 10);
   window.addEventListener('ns2:remote', e => { if (Number.isInteger(e.detail) && e.detail >= 1 && e.detail <= total) show(e.detail - 1, true); });
+  window.addEventListener('ns2:remote-scroll', e => {
+    if (e.detail.slide !== idx + 1 || !Number.isFinite(e.detail.ratio)) return;
+    remoteScrollUntil = Date.now() + 220;
+    const slide = slides[idx];
+    slide.scrollTop = Math.max(0,Math.min(1,e.detail.ratio)) * (slide.scrollHeight - slide.clientHeight);
+  });
+  let scrollTimer;
+  slides.forEach(slide => slide.addEventListener('scroll', () => {
+    if (Date.now() < remoteScrollUntil || slides[idx] !== slide) return;
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => window.dispatchEvent(new CustomEvent('ns2:scroll', {detail:{slide:idx + 1,ratio:slide.scrollTop / Math.max(1,slide.scrollHeight - slide.clientHeight)}})),80);
+  },{passive:true}));
   show(Number.isFinite(h) && h >= 1 && h <= total ? h - 1 : 0);
+  window.ns2Ready = true;
 })();
 </script>
-<script src="sync.js" defer></script>
+<script src="sync.js?v=2" defer></script>
 
 </body>
 </html>
