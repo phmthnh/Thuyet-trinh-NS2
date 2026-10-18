@@ -72,7 +72,7 @@
     frame.style.left = `${(box.clientWidth - 1280 * scale) / 2}px`;
     frame.style.top = `${(box.clientHeight - height * scale) / 2}px`;
   }
-  function render(index, {rememberScroll = true} = {}) {
+  function render(index, {rememberScroll = true, remote = false} = {}) {
     if (rememberScroll) scrollPositions.set(current, $('script-scroll').scrollTop);
     current = Math.max(0, Math.min(notes.length - 1, index));
     const note = notes[current];
@@ -110,6 +110,8 @@
     persist();
     $('script-scroll').scrollTop = scrollPositions.get(current) || 0;
     requestAnimationFrame(updateReadingProgress);
+    window.ns2Slide = note.slide;
+    window.dispatchEvent(new CustomEvent('ns2:slide', {detail:{slide:note.slide,remote}}));
   }
   function selectFilter(name) {
     filter = name;
@@ -184,6 +186,11 @@
     if (filter !== 'all' && notes[current].speaker !== filter) filter = 'all';
     $('speaker-filter').value = filter;
     applyFont(); render(current, {rememberScroll:false});
+    window.addEventListener('ns2:remote', e => {
+      if (!Number.isInteger(e.detail) || e.detail < 1 || e.detail > notes.length) return;
+      filter = 'all'; $('speaker-filter').value = 'all';
+      render(e.detail - 1, {remote:true});
+    });
     $('workspace').setAttribute('aria-busy', 'false');
     $('previous').addEventListener('click', () => move(-1));
     $('next').addEventListener('click', () => move(1));

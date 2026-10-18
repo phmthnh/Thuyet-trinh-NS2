@@ -3,7 +3,26 @@
 - [Bài chiếu](https://phmthnh.github.io/Thuyet-trinh-NS2/)
 - [Kịch bản cho người thuyết trình](https://phmthnh.github.io/Thuyet-trinh-NS2/speaker.html) — có sau khi nhánh chứa trang này được merge và GitHub Pages triển khai thành công.
 
-Trang `speaker.html` dùng đúng 28 slide từ `index.html`. Trên điện thoại, slide nằm trên cùng, lời nói cuộn độc lập ở giữa và hai nút lùi/tiến cố định dưới cùng. Bấm phóng to để đọc các slide nhiều mã nguồn. Các nút điều khiển slide trong trang kịch bản, không điều khiển từ xa máy đang chiếu.
+Trang `speaker.html` dùng đúng 28 slide từ `index.html`. Trên điện thoại, slide nằm trên cùng, lời nói cuộn độc lập ở giữa và hai nút lùi/tiến cố định dưới cùng. Bấm phóng to để đọc các slide nhiều mã nguồn. Chế độ **Kết nối** cho phép đồng bộ hai chiều với cửa sổ chiếu cùng máy hoặc máy tính khác.
+
+## Hai màn hình trên cùng máy
+
+1. Mở `speaker.html`, chọn **⇄ Kết nối → Mở cửa sổ chiếu trên máy này**.
+2. Kéo cửa sổ bài chiếu sang máy chiếu/màn hình thứ hai. Chọn chế độ mở rộng màn hình (Extend) của Windows.
+3. Nhấn **F** trong cửa sổ bài chiếu để toàn màn hình. Giữ trang kịch bản ở màn hình của người nói.
+4. Chuyển slide từ cửa sổ nào cũng được; cửa sổ còn lại tự theo. Chế độ này dùng BroadcastChannel, hai trang phải cùng trình duyệt, cùng hồ sơ và cùng nguồn URL.
+
+## Dùng điện thoại điều khiển máy tính
+
+1. Trên máy tính, mở bài chiếu chính tại `https://phmthnh.github.io/Thuyet-trinh-NS2/`, bấm **⇄ → Tạo phòng cho điện thoại**.
+2. Sao chép liên kết ghép phòng và mở trên điện thoại. Hoặc mở `speaker.html`, chọn **⇄ Kết nối**, nhập mã phòng 20 ký tự từ máy tính.
+3. Nhấn **Ghép điện thoại**. Chỉ bắt đầu chuyển slide khi hiện **Đã kết nối**.
+4. Đóng hộp kết nối trên hai thiết bị. Điện thoại hiển thị slide và lời nói; máy tính chỉ chiếu bài thuyết trình. Chuyển trang từ điện thoại hoặc bàn phím máy tính đều đồng bộ hai chiều.
+5. Giữ trang máy tính mở; mỗi phòng chỉ nhận một điện thoại điều khiển. Bấm **Ngắt kết nối / Đóng phòng** để kết thúc. Khi tải lại máy tính, tạo phòng mới và ghép lại; sau khi điện thoại khóa màn hình hoặc đổi mạng, kiểm tra trạng thái rồi ghép lại nếu cần.
+
+GitHub Pages chỉ phục vụ các tệp tĩnh. Kết nối giữa hai thiết bị dùng PeerJS 1.5.5 (đóng gói trong `vendor/`, giấy phép MIT) với PeerJS Cloud để tìm nhau và WebRTC để trao đổi số slide; không gửi lời nói, không yêu cầu camera hoặc micro. Chỉ tải dịch vụ kết nối khi người dùng chọn tạo/ghép phòng. Cần Internet cho chế độ điện thoại. Mạng chặn WebRTC hoặc NAT hạn chế có thể khiến ghép phòng thất bại vì chưa cấu hình TURN riêng; thử cùng Wi-Fi/điểm phát sóng hoặc dùng hai cửa sổ cùng máy. Không cam kết mọi mạng đều kết nối được.
+
+Mã phòng và liên kết là quyền điều khiển phiên đang mở; chỉ chia sẻ cho người thuyết trình. Trang được phục vụ qua HTTPS trên GitHub Pages. Không dùng đường dẫn thư mục HTML cũ đã xóa; tham số Facebook `fbclid` không cần thiết.
 
 ## Phân công
 
@@ -31,9 +50,10 @@ Mở `http://127.0.0.1:8766/speaker.html`. Trang cần được phục vụ qua 
 
 ## Nội dung và bảo trì
 
-- `index.html`: bài chiếu gốc, giữ nguyên.
+- `index.html`: nội dung bài chiếu gốc, bổ sung đường dẫn kịch bản và kết nối.
 - `speaker.html`, `speaker.css`, `speaker.js`: giao diện đọc và luyện tập.
 - `speaker-notes.js`: 28 mục gồm người nói, phần phụ trách, lời nói chi tiết, gợi ý và câu chuyển tiếp.
+- `sync.js`: kết nối hai cửa sổ và ghép điện thoại; `vendor/` chứa PeerJS cùng giấy phép.
 
 Khi đổi số lượng/thứ tự/nội dung slide, cập nhật lời nói tương ứng. Trang kiểm tra số lượng slide để tránh trình bày nhầm sau khi thêm hoặc xóa slide. Chỉ số gói, độ trễ và thông lượng trong kịch bản được diễn giải theo bảng đang có; repo không có trace gốc để xác minh lại thí nghiệm.
 
