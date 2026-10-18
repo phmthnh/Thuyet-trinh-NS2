@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#102a2b">
+  <meta name="description" content="Kịch bản thuyết trình NS-2 cho 5 thành viên. Xem slide, đọc lời nói chi tiết và luyện tập trên điện thoại.">
+  <title>Kịch bản NS-2 · Người thuyết trình</title>
+  <link rel="stylesheet" href="speaker.css">
+  <script src="speaker-notes.js" defer></script>
+  <script src="speaker.js" defer></script>
+  <script src="sync.js" defer></script>
+</head>
+<body>
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6M8 12h12"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6M4 12h12"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 5h12M9 12h12M9 19h12M3 5h1M3 12h1M3 19h1"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M9 3H3v6M15 3h6v6M21 15v6h-6M3 15v6h6"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m15 5 4 4M4 20l5-1L21 7a2.8 2.8 0 0 0-4-4L5 15l-1 5Z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  </defs></svg>
+
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="brand" href="speaker.html" aria-label="Kịch bản NS-2, về trang đầu"><span class="brand-mark">N<span>2</span></span><span>KỊCH BẢN <b>NS-2</b></span></a>
+      <button class="outline-button" id="sync-launch" style="margin-left:auto">⇄ Kết nối</button>
+      <button class="outline-button" id="open-outline"><svg><use href="#i-list"/></svg><span>Phân công &amp; slide</span></button>
+    </header>
+
+    <main class="workspace" id="workspace" aria-busy="true">
+      <section class="visual-panel" aria-label="Slide đang trình bày">
+        <div class="visual-heading"><span class="eyebrow">BÀI THUYẾT TRÌNH</span><span id="slide-counter">01 / 28</span></div>
+        <div class="preview-box" id="preview-box">
+          <iframe id="slide-preview" title="Bản xem trước slide hiện tại" sandbox="allow-same-origin" tabindex="-1"></iframe>
+          <div class="preview-loading" id="preview-loading">Đang tải bài thuyết trình…</div>
+          <button class="expand-button" id="expand-slide" aria-label="Phóng to slide"><svg><use href="#i-expand"/></svg></button>
+        </div>
+        <div class="preview-caption"><span id="preview-caption">Mô phỏng mạng với NS-2</span><a id="original-link" href="index.html#1" target="_blank" rel="noopener">Mở bài chiếu ↗</a></div>
+        <div class="desktop-context">
+          <div class="context-heading"><span class="eyebrow">CÙNG NHAU TRÌNH BÀY</span><span>05 thành viên</span></div>
+          <div class="team-list" id="desktop-team"></div>
+          <p class="context-note">Chọn tên để tập riêng phần của mình. Chọn “Tất cả” để đi theo đúng thứ tự 28 slide.</p>
+          <button class="text-button" id="export-script"><svg><use href="#i-download"/></svg>Tải toàn bộ kịch bản (.txt)</button>
+        </div>
+      </section>
+
+      <section class="reading-panel" aria-label="Kịch bản thuyết trình">
+        <div class="reader-toolbar">
+          <label class="filter-label" for="speaker-filter">Phần của <select id="speaker-filter"><option value="all">Tất cả</option><option>Long</option><option>Minh</option><option>Bảo</option><option>Thành</option><option>Đạt</option></select></label>
+          <div class="type-controls"><button id="font-down" aria-label="Giảm cỡ chữ">A−</button><button id="font-up" aria-label="Tăng cỡ chữ">A+</button><button id="edit-script" aria-label="Chỉnh lời nói của slide này"><svg><use href="#i-edit"/></svg></button></div>
+        </div>
+        <div class="reading-progress" aria-hidden="true"><span id="reading-progress"></span></div>
+        <article class="script-scroll" id="script-scroll" tabindex="0" aria-label="Lời thuyết trình, cuộn để đọc tiếp">
+          <div class="speaker-line"><span class="avatar" id="speaker-avatar">L</span><div><strong id="speaker-name">Long</strong><span id="section-label">Mở đầu</span></div><span class="duration" id="duration">—</span></div>
+          <h1 id="script-title">Kịch bản thuyết trình</h1>
+          <div class="script-label"><span>LỜI NÓI GỢI Ý</span><span id="edited-label" hidden>Đã chỉnh trên máy này</span></div>
+          <div class="script-body" id="script-body"><p>Đang chuẩn bị nội dung…</p></div>
+          <aside class="cue-box"><span class="eyebrow">NHẮC NHẸ KHI TRÌNH BÀY</span><ul id="script-cues"></ul></aside>
+          <div class="handoff"><span class="eyebrow">CÂU CHUYỂN TIẾP</span><p id="transition"></p></div>
+          <div class="reading-end">Hết lời nói cho slide này <span>↓</span></div>
+        </article>
+        <nav class="bottom-nav" aria-label="Điều hướng slide">
+          <button id="previous" class="nav-previous"><svg><use href="#i-prev"/></svg><span>Lùi</span></button>
+          <div class="nav-position"><strong id="position">01 / 28</strong><span id="position-label">trang chiếu</span></div>
+          <button id="next" class="nav-next"><span>Tiến <small id="next-speaker">Long</small></span><svg><use href="#i-next"/></svg></button>
+        </nav>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="outline-dialog" class="outline-dialog">
+    <div class="dialog-heading"><div><span class="eyebrow">CHUẨN BỊ CÙNG NHÓM</span><h2>Phân công &amp; trang chiếu</h2></div><button class="icon-button close-dialog" aria-label="Đóng"><svg><use href="#i-close"/></svg></button></div>
+    <div class="dialog-scroll">
+      <p class="dialog-intro">Giữ phần lý thuyết theo phân công của nhóm; chia thêm ví dụ và phân tích để mỗi người có phần thực hành liên quan.</p>
+      <div id="assignment-list" class="assignment-list"></div>
+      <p class="mapping-note">Các mục 4.4.1–4.4.6 được ghép với sáu bước trong bài chiếu hiện tại. Thời lượng là gợi ý luyện tập; phần demo chạy trực tiếp cần cộng thêm thời gian.</p>
+      <div class="outline-heading"><h3>28 trang chiếu</h3><button id="export-mobile" class="text-button"><svg><use href="#i-download"/></svg>Tải kịch bản</button></div>
+      <div id="slide-list" class="slide-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="preview-dialog" class="preview-dialog"><div class="dialog-heading"><h2 id="large-slide-title">Slide</h2><button class="icon-button close-dialog" aria-label="Đóng slide phóng to"><svg><use href="#i-close"/></svg></button></div><iframe id="large-slide" sandbox="allow-same-origin" title="Slide phóng to, có thể cuộn để đọc toàn bộ"></iframe><p class="zoom-hint">Cuộn trong slide để xem hết nội dung.</p></dialog>
+
+  <dialog id="edit-dialog" class="edit-dialog"><div class="dialog-heading"><div><span class="eyebrow">NÓI THEO CÁCH CỦA BẠN</span><h2>Chỉnh lời thuyết trình</h2></div><button class="icon-button close-dialog" aria-label="Đóng chỉnh sửa"><svg><use href="#i-close"/></svg></button></div><p>Thay đổi được lưu riêng trên trình duyệt này. Ngăn các đoạn bằng một dòng trống.</p><label class="sr-only" for="edit-text">Lời thuyết trình</label><textarea id="edit-text" spellcheck="false"></textarea><p id="edit-error" role="alert"></p><div class="edit-actions"><button class="text-button" id="restore-script">Dùng lời gốc</button><button class="save-button" id="save-script">Lưu lời nói</button></div></dialog>
+  <div class="toast" id="toast" role="status"></div>
+  <noscript><div class="fatal-error">Hãy bật JavaScript để xem kịch bản và chuyển slide. <a href="index.html">Mở bài thuyết trình</a>.</div></noscript>
+</body>
+</html>

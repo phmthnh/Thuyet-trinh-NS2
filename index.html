@@ -1629,6 +1629,8 @@ Queue/RED <span class="c-key">set</span> maxthresh_ <span class="c-num">30</span
 <div class="counter"><span id="cur">1</span> / <span id="tot">28</span></div>
 
 <div class="nav">
+  <a href="speaker.html" title="Mở kịch bản" style="font-size:13px">Kịch bản</a>
+  <button id="sync-launch" title="Kết nối điện thoại" aria-label="Kết nối điện thoại">⇄</button>
   <button id="prev" title="Slide trước">‹</button>
   <button id="next" title="Slide sau">›</button>
 </div>
@@ -1647,7 +1649,7 @@ Queue/RED <span class="c-key">set</span> maxthresh_ <span class="c-num">30</span
 
   tot.textContent = total;
 
-  function show(n){
+  function show(n, remote = false){
     n = Math.max(0, Math.min(total - 1, n));
     slides[idx].classList.remove('active');
     idx = n;
@@ -1662,6 +1664,8 @@ Queue/RED <span class="c-key">set</span> maxthresh_ <span class="c-num">30</span
 
     /* cập nhật hash để có thể share link tới slide */
     history.replaceState(null, '', '#' + (idx + 1));
+    window.ns2Slide = idx + 1;
+    window.dispatchEvent(new CustomEvent('ns2:slide', {detail:{slide:idx + 1,remote}}));
   }
 
   prevB.addEventListener('click', () => show(idx - 1));
@@ -1701,9 +1705,11 @@ Queue/RED <span class="c-key">set</span> maxthresh_ <span class="c-num">30</span
 
   /* mở đúng slide nếu URL có hash */
   const h = parseInt(location.hash.replace('#',''), 10);
+  window.addEventListener('ns2:remote', e => { if (Number.isInteger(e.detail) && e.detail >= 1 && e.detail <= total) show(e.detail - 1, true); });
   show(Number.isFinite(h) && h >= 1 && h <= total ? h - 1 : 0);
 })();
 </script>
+<script src="sync.js" defer></script>
 
 </body>
 </html>
