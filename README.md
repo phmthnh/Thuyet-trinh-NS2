@@ -35,13 +35,13 @@ Mã phòng 6 số chỉ giúp tìm phòng, không cấp quyền điều khiển.
 
 | Thành viên | Phần lý thuyết theo phân công | Slide phụ trách | Thời gian lời nói gợi ý |
 | --- | --- | --- | --- |
-| Long | 4.4.1: bộ lập lịch; mở đầu và tổng kết | 1–6, 27–28 | 9 phút 05 giây |
-| Minh | 4.4.2: ghi vết; chạy và phân tích trace | 7, 18–21 | 7 phút 30 giây |
-| Bảo | 4.4.3: mô hình mạng; ví dụ có dây | 8–10, 14–15 | 7 phút 30 giây |
-| Thành | 4.4.4: TCP/UDP; ví dụ không dây và demo | 11, 16–17, 26 | 6 phút 05 giây |
-| Đạt | 4.4.5–4.4.6: nguồn lưu lượng, thời gian; kết quả và cải tiến | 12–13, 22–25 | 9 phút 25 giây |
+| Long | 4.4.1: bộ lập lịch; mở đầu và tổng kết | 1–6, 27–28 | 10 phút 55 giây |
+| Minh | 4.4.2: ghi vết; chạy và phân tích trace | 7, 18–21 | 8 phút 55 giây |
+| Bảo | 4.4.3: mô hình mạng; ví dụ có dây | 8–10, 14–15 | 8 phút 25 giây |
+| Thành | 4.4.4: TCP/UDP; ví dụ không dây và demo | 11, 16–17, 26 | 6 phút 45 giây |
+| Đạt | 4.4.5–4.4.6: nguồn lưu lượng, thời gian; kết quả và cải tiến | 12–13, 22–25 | 10 phút 45 giây |
 
-Tổng khoảng 39 phút 35 giây cho bản chi tiết; cộng thêm thời gian chạy demo và hỏi đáp. Đây là thời lượng luyện tập ước tính, chưa phải kết quả bấm giờ. Các số mục 4.4.1–4.4.6 được ghép theo sáu bước trong bài hiện có và thứ tự phân công của nhóm; repo không chứa giáo trình để đối chiếu tên từng mục.
+Tổng khoảng 45 phút 45 giây cho bản chi tiết; cộng thêm thời gian chạy demo và hỏi đáp. Ước tính theo khoảng 210 đơn vị cách nhau bằng dấu cách/phút, làm tròn từng slide lên 5 giây; chưa phải kết quả bấm giờ. Các số mục 4.4.1–4.4.6 được ghép theo sáu bước trong bài hiện có và thứ tự phân công của nhóm; repo không chứa giáo trình để đối chiếu tên từng mục.
 
 Chọn **Phần của** để tập riêng phần một người. Chọn **Tất cả** để giữ thứ tự bài chiếu. Thanh **Đến slide** luôn hiện trên trang điều khiển; bấm số slide giữa hai nút lùi/tiến để nhập số trực tiếp. Nút **Mục lục** mở danh sách kèm phân công. Khi nhận lệnh từ máy chiếu hoặc nhảy trực tiếp, bộ lọc chuyển về tất cả để không bỏ qua slide.
 
@@ -73,3 +73,5 @@ Khi đổi số lượng/thứ tự/nội dung slide, cập nhật lời nói t�
 Kịch bản bổ sung lưu ý cho các điểm dễ nhầm trong bài: cú pháp bộ lập lịch, định tuyến Static mặc định, trường AGT trong trace, thời gian hội tụ, cách đếm PDR và phân biệt phần trăm với điểm phần trăm. Tham khảo [NS-2 Manual](https://www.isi.edu/websites/nsnam/ns/ns-man.html), [Scheduler](https://www.isi.edu/websites/nsnam/ns/doc-stable/node31.html), [Trace](https://www.isi.edu/websites/nsnam/ns/doc/node296.html) và [RFC 3550](https://www.rfc-editor.org/rfc/rfc3550.html).
 
 Nhánh `main` được bảo vệ: thay đổi qua pull request, chỉ `phmthnh` được merge, không cần chờ người khác review. Không tắt quy tắc để xuất bản trang kịch bản.
+
+Bản mở rộng ngày 19/10/2026 bổ sung ví dụ tính toán và giải thích cơ chế cho đủ 28 slide. Ví dụ tự đặt được ghi rõ là minh họa, không phải kết quả đo của nhóm. Nếu trình duyệt đang dùng lời đã chỉnh, hãy xuất bản nháp JSON để giữ lại, rồi chọn **Sửa → Dùng lời gốc** ở slide cần cập nhật để xem nội dung mới.
