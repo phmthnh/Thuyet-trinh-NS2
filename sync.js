@@ -28,6 +28,11 @@
   let pendingState = null, pendingCommand = null, remoteUntil = 0, scrollRatio = 0, challenge = '', token = '';
   let permission = '', wakeLock, arrivals = [], roomCollisions = 0;
   const devices = new Map(), grants = new Map(), logs = [];
+  let stateRevision = 0, receivedRevision = -1, lastHostSlide = 0;
+  function hostSlide() {
+    const actual = Number($('cur')?.textContent);
+    return !speaker && valid(actual) ? actual : window.ns2Slide || 1;
+  }
   const deckControls = document.createElement('style');deckControls.textContent = '.nav #sync-launch{width:auto;min-width:48px;max-width:180px;padding:0 12px;font-size:12px;border-radius:9px;white-space:nowrap}.nav #sync-launch[data-pending=true]{border-color:#f4be55;color:#f4be55}';document.head.append(deckControls);
   function log(text) {logs.push(`${new Date().toLocaleTimeString('vi-VN')} ${text}`);if (logs.length > 16) logs.shift();$('sync-diagnostics').textContent = logs.join('\n');}
   function status(text, state = 'idle', brief = '') {
@@ -44,13 +49,22 @@
   function safeSend(conn,message) {if (!conn?.open) return false;try {conn.send(message);return true;} catch {return false;}}
   function localSend(message) {try {channel?.postMessage(message);} catch { /* Closed channel. */ }}
   function broadcastState(ack) {
-    const message = {type:'state',slide:window.ns2Slide || 1,ratio:scrollRatio,ack};
+    const slide = hostSlide();
+    if (slide !== lastHostSlide) {lastHostSlide = slide;scrollRatio = 0;}
+    const message = {type:'state',slide,ratio:scrollRatio,ack,revision:++stateRevision};
     for (const entry of devices.values()) if (entry.permission) safeSend(entry.conn,message);
     localSend(message);
   }
   function applyState(message) {
     if (!valid(message.slide)) return;
+    if (speaker && Number.isInteger(message.revision)) {
+      if (message.revision < receivedRevision) return;
+      receivedRevision = message.revision;
+    }
     if (!ready) {pendingState = message;return;}
+    const sameSlide = message.slide === window.ns2Slide;
+    const sameScroll = !Number.isFinite(message.ratio) || Math.abs(message.ratio - scrollRatio) < 0.002;
+    if (sameSlide && sameScroll) return;
     remoteUntil = Date.now() + 220;
     window.dispatchEvent(new CustomEvent('ns2:remote',{detail:message.slide}));
     if (Number.isFinite(message.ratio)) {scrollRatio = Math.max(0,Math.min(1,message.ratio));window.dispatchEvent(new CustomEvent('ns2:remote-scroll',{detail:{slide:message.slide,ratio:scrollRatio}}));}
@@ -83,7 +97,7 @@
   });
   function peerOptions() {return {secure:true,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},{urls:['turn:eu-0.turn.peerjs.com:3478','turn:us-0.turn.peerjs.com:3478'],username:'peerjs',credential:'peerjsp'},...(turn.url ? [{urls:turn.url,username:turn.username,credential:turn.credential}] : [])]}};}
   function clearNetwork() {
-    generation++;clearInterval(interval);clearTimeout(timeout);clearTimeout(retryTimer);clearTimeout(commandTimer);accepted = false;permission = '';pendingCommand = null;
+    generation++;clearInterval(interval);clearTimeout(timeout);clearTimeout(retryTimer);clearTimeout(commandTimer);accepted = false;permission = '';pendingCommand = null;receivedRevision = -1;
     for (const d of devices.values()) clearTimeout(d.expiry);
     const old = peer;peer = null;controller = null;devices.clear();if (old) old.destroy();
   }
@@ -98,7 +112,7 @@
       function action(text,callback) {const button = document.createElement('button');button.textContent = text;button.addEventListener('click',callback);actions.append(button);}
       function grant(value) {
         if (!entry.permission && [...devices.values()].filter(d => d.permission).length >= 5) {status('Đã đủ 5 thiết bị. Ngắt một thiết bị trước khi duyệt thêm.','error');return;}
-        entry.permission = value;grants.set(entry.token,{permission:value});clearTimeout(entry.expiry);safeSend(entry.conn,{type:'approved',permission:value});safeSend(entry.conn,{type:'state',slide:window.ns2Slide || 1,ratio:scrollRatio});deviceList();status('Đã kết nối. Có thể quản lý từng thiết bị bên dưới.','connected');keepAwake();
+        entry.permission = value;grants.set(entry.token,{permission:value});clearTimeout(entry.expiry);safeSend(entry.conn,{type:'approved',permission:value});safeSend(entry.conn,{type:'state',slide:hostSlide(),ratio:scrollRatio,revision:++stateRevision});deviceList();status('Đã kết nối. Có thể quản lý từng thiết bị bên dưới.','connected');keepAwake();
       }
       action(entry.permission ? entry.permission === 'view' ? 'Cho điều khiển' : 'Chỉ cho xem' : 'Chấp nhận điều khiển',() => grant(entry.permission === 'control' ? 'view' : 'control'));
       if (!entry.permission) action('Chỉ cho xem',() => grant('view'));
@@ -131,13 +145,13 @@
         for (const [id,old] of devices) if (old !== entry && old.token === data.token) {devices.delete(id);clearTimeout(old.expiry);old.conn.close();}
         entry.token = data.token;entry.identified = true;entry.permission = resumed?.permission || '';
         safeSend(conn,{type:entry.permission ? 'approved' : 'pending',permission:entry.permission});
-        if (entry.permission) {clearTimeout(entry.expiry);safeSend(conn,{type:'state',slide:window.ns2Slide || 1,ratio:scrollRatio});}
+        if (entry.permission) {clearTimeout(entry.expiry);safeSend(conn,{type:'state',slide:hostSlide(),ratio:scrollRatio,revision:++stateRevision});}
         deviceList();status(entry.permission ? 'Đã kết nối lại thiết bị đã duyệt.' : 'Có thiết bị đang chờ bạn chấp nhận.',entry.permission ? 'connected' : 'pending');return;
       }
-      if (data.type === 'ping') {safeSend(conn,{type:'pong'});return;}if (!entry.permission) return;
-      if (data.type === 'hello') {safeSend(conn,{type:'state',slide:window.ns2Slide || 1,ratio:scrollRatio});return;}
+      if (data.type === 'ping') {safeSend(conn,{type:'pong'});if (entry.permission) broadcastState();return;}if (!entry.permission) return;
+      if (data.type === 'hello') {safeSend(conn,{type:'state',slide:hostSlide(),ratio:scrollRatio,revision:++stateRevision});return;}
       if (data.type === 'command') {
-        if (entry.permission !== 'control') {safeSend(conn,{type:'state',slide:window.ns2Slide || 1,ratio:scrollRatio,ack:data.id,viewOnly:true});return;}
+        if (entry.permission !== 'control') {safeSend(conn,{type:'state',slide:hostSlide(),ratio:scrollRatio,revision:++stateRevision,ack:data.id,viewOnly:true});return;}
         if (!valid(data.slide) || !Number.isFinite(data.ratio) || data.ratio < 0 || data.ratio > 1 || typeof data.id !== 'string' || data.id.length > 32) return;
         applyState(data);broadcastState(data.id);
       }
@@ -162,7 +176,7 @@
       if (data.type === 'pending') {clearTimeout(timeout);status('Đối chiếu mã xác nhận ' + challenge + ' rồi nhờ người ở máy chiếu bấm Chấp nhận.','pending','Chờ máy duyệt');}
       if (data.type === 'approved') {accepted = true;permission = data.permission;retryCount = 0;clearTimeout(timeout);safeSend(conn,{type:'hello'});log('Máy chiếu đã cấp quyền ' + permission);}
       if (data.type === 'state' && accepted) {
-        if (pendingCommand && data.ack && data.ack !== pendingCommand.id) return;
+        if (Number.isInteger(data.revision) && data.revision < receivedRevision) return;
         pendingCommand = null;clearTimeout(commandTimer);applyState(data);status(`Đã kết nối và xác nhận slide ${data.slide}.`,'connected',permission === 'view' ? 'Chỉ xem' : `Đã nối · ${data.slide}/28`);$('sync-retry').hidden = true;keepAwake();
       }
       if (data.type === 'rejected' || data.type === 'revoked') {stopped = true;accepted = false;clearTimeout(timeout);status(data.reason || 'Máy chiếu đã ngắt quyền thiết bị. Gửi yêu cầu mới để được duyệt.','error','Đã từ chối');$('sync-retry').hidden = false;}
@@ -203,11 +217,28 @@
   if (speaker) {
     $('sync-name').value = readSession('ns2-device-name') || 'Điện thoại của tôi';
     $('sync-join').addEventListener('click',() => {let code = $('sync-code').value.trim();try {code = new URL(code).searchParams.get('room') || code;} catch { /* Plain numeric code. */ }if (!roomValid(code)) {status('Nhập mã đúng 6 số hoặc dán liên kết QR mới.','error');return;}retryCount = 0;if (channel) {channel.close();channel = null;}start('controller',code);});
-    $('sync-local').addEventListener('click',() => {const id = random(10),url = new URL('index.html',location.href);url.searchParams.set('local',id);url.hash = String(window.ns2Slide || 1);const child = window.open(url.href,'_blank');if (!child) {status('Cho phép cửa sổ bật lên để mở màn hình chiếu.','error');return;}stop();startLocal(id,'controller');status('Đã mở cửa sổ chiếu, đang chờ cửa sổ sẵn sàng…','pending','Chờ cửa sổ');});
+    function openProjection(event) {
+      event?.preventDefault();
+      const id = random(10),url = new URL('index.html',location.href);url.searchParams.set('local',id);url.hash = String(window.ns2Slide || 1);
+      const child = window.open(url.href,'ns2-projection');
+      if (!child) {status('Cho phép cửa sổ bật lên để mở màn hình chiếu.','error');dialog.showModal();return;}
+      stop();startLocal(id,'controller');status('Đã mở cửa sổ chiếu có đồng bộ. Kéo cửa sổ này sang máy chiếu.','pending','Chờ cửa sổ');
+    }
+    $('sync-local').addEventListener('click',openProjection);
+    $('original-link')?.addEventListener('click',openProjection);
     if (roomValid(query.get('room') || '')) {$('sync-code').value = query.get('room');dialog.showModal();status('Đã nhận mã phòng từ liên kết. Đặt tên thiết bị rồi bấm Gửi yêu cầu kết nối.');}else if (query.has('room')) {dialog.showModal();status('Liên kết phòng cũ không dùng được. Tạo phòng mới để có mã 6 số và QR.','error');}
   } else {window.ns2Ready = true;$('sync-host').addEventListener('click',() => start('host',roomNumber()));const id = query.get('local');if (/^[a-f0-9]{20}$/.test(id || '')) startLocal(id,'host');}
   $('sync-copy').addEventListener('click',async () => {try {await navigator.clipboard.writeText($('sync-link').value);status('Đã sao chép liên kết ghép. Mở trên điện thoại rồi duyệt yêu cầu ở máy chiếu.');} catch {$('sync-link').select();status('Hãy sao chép liên kết đang được chọn.');}});
   document.addEventListener('visibilitychange',() => {if (document.visibilityState !== 'visible' || stopped) return;keepAwake();if (speaker && room) {if (controller?.open && accepted) safeSend(controller,{type:'hello'});else {retryCount = 0;scheduleRetry(generation);}}if (channel) localSend({type:'hello'});});
   window.addEventListener('online',() => {if (!stopped && room && speaker && !accepted) {retryCount = 0;scheduleRetry(generation);}});
   window.addEventListener('offline',() => {if (!stopped && room) status('Thiết bị mất Internet. Sẽ thử lại khi có mạng.','error','Mất Internet');});
+  // Reconcile actual projected state even if a transition event was missed or a tab was suspended.
+  setInterval(() => {
+    if (stopped) return;
+    if (role === 'host') broadcastState();
+    else {
+      if (channel) localSend({type:'hello'});
+      if (accepted && controller?.open) safeSend(controller,{type:'hello'});
+    }
+  },1500);
 })();

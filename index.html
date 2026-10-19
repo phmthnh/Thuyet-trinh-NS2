@@ -1708,6 +1708,10 @@ Queue/RED <span class="c-key">set</span> maxthresh_ <span class="c-num">30</span
   /* mở đúng slide nếu URL có hash */
   const h = parseInt(location.hash.replace('#',''), 10);
   window.addEventListener('ns2:remote', e => { if (Number.isInteger(e.detail) && e.detail >= 1 && e.detail <= total) show(e.detail - 1, true); });
+  window.addEventListener('hashchange', () => {
+    const number = Number(location.hash.slice(1));
+    if (Number.isInteger(number) && number >= 1 && number <= total && number !== idx + 1) show(number - 1);
+  });
   window.addEventListener('ns2:remote-scroll', e => {
     if (e.detail.slide !== idx + 1 || !Number.isFinite(e.detail.ratio)) return;
     remoteScrollUntil = Date.now() + 220;
@@ -1724,7 +1728,7 @@ Queue/RED <span class="c-key">set</span> maxthresh_ <span class="c-num">30</span
   window.ns2Ready = true;
 })();
 </script>
-<script src="sync.js?v=2" defer></script>
+<script src="sync.js?v=3" defer></script>
 
 </body>
 </html>

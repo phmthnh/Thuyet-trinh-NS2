@@ -12,6 +12,8 @@ Trang `speaker.html` dùng đúng 28 slide từ `index.html`. Trên điện tho�
 3. Nhấn **F** trong cửa sổ bài chiếu để toàn màn hình. Giữ trang kịch bản ở màn hình của người nói.
 4. Chuyển slide từ cửa sổ nào cũng được; cửa sổ còn lại tự theo. Chế độ này dùng BroadcastChannel, hai trang phải cùng trình duyệt, cùng hồ sơ và cùng nguồn URL.
 
+Liên kết **Mở bài chiếu ↗** dưới preview cũng mở cửa sổ đã ghép tự động. Một tab bài chiếu mở độc lập bằng cách tự gõ URL sẽ không tự có quyền kết nối: hãy mở từ trang kịch bản hoặc ghép bằng mã/QR. Trang kiểm tra lại trạng thái thực tế của máy chiếu mỗi 1,5 giây để khôi phục khi bỏ lỡ sự kiện hoặc trở lại từ tab nền; thông điệp cũ hơn không ghi đè trạng thái mới.
+
 ## Dùng điện thoại điều khiển máy tính
 
 1. Trên máy tính, mở bài chiếu chính tại `https://phmthnh.github.io/Thuyet-trinh-NS2/`, bấm **⇄ → Tạo phòng · Hiện QR**.
