@@ -28,6 +28,8 @@
   let pendingState = null, pendingCommand = null, remoteUntil = 0, scrollRatio = 0, challenge = '', token = '';
   let permission = '', wakeLock, arrivals = [], roomCollisions = 0;
   const devices = new Map(), grants = new Map(), logs = [];
+  const tabId = random(10);
+  let activeLocalHost = '', localHostSeen = 0;
   let stateRevision = 0, receivedRevision = -1, lastHostSlide = 0;
   function hostSlide() {
     const actual = Number($('cur')?.textContent);
@@ -47,7 +49,7 @@
   dialog.addEventListener('keydown', e => e.stopPropagation());dialog.addEventListener('touchstart',e => e.stopPropagation(),{passive:true});dialog.addEventListener('touchend',e => e.stopPropagation(),{passive:true});
   async function keepAwake() {try {if ('wakeLock' in navigator && document.visibilityState === 'visible' && !stopped && !wakeLock) {wakeLock = await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',() => {wakeLock = null;});}} catch { /* Optional browser feature. */ }}
   function safeSend(conn,message) {if (!conn?.open) return false;try {conn.send(message);return true;} catch {return false;}}
-  function localSend(message) {try {channel?.postMessage(message);} catch { /* Closed channel. */ }}
+  function localSend(message) {try {channel?.postMessage({...message,sender:tabId,target:role === 'controller' ? activeLocalHost : ''});} catch { /* Closed channel. */ }}
   function broadcastState(ack) {
     const slide = hostSlide();
     if (slide !== lastHostSlide) {lastHostSlide = slide;scrollRatio = 0;}
@@ -210,8 +212,18 @@
   $('sync-retry').addEventListener('click',() => {retryCount = 0;if (room) start(role,room,true);});
   $('sync-lock').addEventListener('click',() => {locked = !locked;$('sync-lock').setAttribute('aria-pressed',String(locked));$('sync-lock').textContent = locked ? 'Đang khóa · Bấm để mở' : 'Khóa nhận thiết bị mới';if (locked) for (const [id,d] of devices) if (!d.permission) {safeSend(d.conn,{type:'rejected',reason:'Chủ máy đã khóa phòng.'});devices.delete(id);clearTimeout(d.expiry);setTimeout(() => d.conn.close(),100);}deviceList();});
   function startLocal(id,kind) {
-    if (channel) channel.close();role = kind;stopped = false;channel = new BroadcastChannel('ns2-local-' + id);
-    channel.onmessage = ({data}) => {if (!data || typeof data !== 'object') return;if (data.type === 'hello' && role === 'host') broadcastState();if (data.type === 'state' && role === 'controller') {applyState(data);status('Đã đồng bộ hai cửa sổ cùng máy.','connected','Hai màn hình');}if (data.type === 'command' && role === 'host' && valid(data.slide) && Number.isFinite(data.ratio)) {applyState(data);broadcastState(data.id);}};
+    if (channel) channel.close();role = kind;stopped = false;activeLocalHost = '';localHostSeen = 0;receivedRevision = -1;channel = new BroadcastChannel('ns2-local-' + id);
+    channel.onmessage = ({data}) => {
+      if (!data || typeof data !== 'object') return;
+      if (role === 'host' && data.target && data.target !== tabId) return;
+      if (data.type === 'hello' && role === 'host') {broadcastState();if (!peer) status('Đã đồng bộ với trang kịch bản trong cùng trình duyệt.','connected','Hai màn hình');}
+      if (data.type === 'state' && role === 'controller') {
+        if (activeLocalHost && data.sender !== activeLocalHost && Date.now() - localHostSeen < 5000) return;
+        if (data.sender !== activeLocalHost) {activeLocalHost = data.sender;receivedRevision = -1;}
+        localHostSeen = Date.now();applyState(data);status('Đã đồng bộ hai cửa sổ cùng máy.','connected','Hai màn hình');
+      }
+      if (data.type === 'command' && role === 'host' && valid(data.slide) && Number.isFinite(data.ratio)) {applyState(data);broadcastState(data.id);}
+    };
     if (kind === 'host') broadcastState();else localSend({type:'hello'});$('sync-stop').hidden = false;keepAwake();
   }
   if (speaker) {
@@ -227,7 +239,8 @@
     $('sync-local').addEventListener('click',openProjection);
     $('original-link')?.addEventListener('click',openProjection);
     if (roomValid(query.get('room') || '')) {$('sync-code').value = query.get('room');dialog.showModal();status('Đã nhận mã phòng từ liên kết. Đặt tên thiết bị rồi bấm Gửi yêu cầu kết nối.');}else if (query.has('room')) {dialog.showModal();status('Liên kết phòng cũ không dùng được. Tạo phòng mới để có mã 6 số và QR.','error');}
-  } else {window.ns2Ready = true;$('sync-host').addEventListener('click',() => start('host',roomNumber()));const id = query.get('local');if (/^[a-f0-9]{20}$/.test(id || '')) startLocal(id,'host');}
+    else {startLocal('browser-auto','controller');status('Đang tìm trang chiếu mở trong cùng trình duyệt…','pending','Tìm máy chiếu');}
+  } else {window.ns2Ready = true;$('sync-host').addEventListener('click',() => start('host',roomNumber()));const id = query.get('local');startLocal(/^[a-f0-9]{20}$/.test(id || '') ? id : 'browser-auto','host');}
   $('sync-copy').addEventListener('click',async () => {try {await navigator.clipboard.writeText($('sync-link').value);status('Đã sao chép liên kết ghép. Mở trên điện thoại rồi duyệt yêu cầu ở máy chiếu.');} catch {$('sync-link').select();status('Hãy sao chép liên kết đang được chọn.');}});
   document.addEventListener('visibilitychange',() => {if (document.visibilityState !== 'visible' || stopped) return;keepAwake();if (speaker && room) {if (controller?.open && accepted) safeSend(controller,{type:'hello'});else {retryCount = 0;scheduleRetry(generation);}}if (channel) localSend({type:'hello'});});
   window.addEventListener('online',() => {if (!stopped && room && speaker && !accepted) {retryCount = 0;scheduleRetry(generation);}});
