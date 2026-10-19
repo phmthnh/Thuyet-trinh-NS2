@@ -12,7 +12,9 @@ Trang `speaker.html` dùng đúng 28 slide từ `index.html`. Trên điện tho�
 3. Nhấn **F** trong cửa sổ bài chiếu để toàn màn hình. Giữ trang kịch bản ở màn hình của người nói.
 4. Chuyển slide từ cửa sổ nào cũng được; cửa sổ còn lại tự theo. Chế độ này dùng BroadcastChannel, hai trang phải cùng trình duyệt, cùng hồ sơ và cùng nguồn URL.
 
-Liên kết **Mở bài chiếu ↗** dưới preview cũng mở cửa sổ đã ghép tự động. Một tab bài chiếu mở độc lập bằng cách tự gõ URL sẽ không tự có quyền kết nối: hãy mở từ trang kịch bản hoặc ghép bằng mã/QR. Trang kiểm tra lại trạng thái thực tế của máy chiếu mỗi 1,5 giây để khôi phục khi bỏ lỡ sự kiện hoặc trở lại từ tab nền; thông điệp cũ hơn không ghi đè trạng thái mới.
+Mở riêng trang gốc `/` và `/speaker.html` trong **cùng trình duyệt, cùng hồ sơ, cùng nguồn URL** sẽ tự đồng bộ, kể cả mở từ hai dấu trang riêng. Trang kịch bản hiện **Hai màn hình** khi đã bắt cặp. Liên kết **Mở bài chiếu ↗** vẫn mở một cặp cửa sổ riêng. Các tab chạy ở trình duyệt/hồ sơ khác hoặc điện thoại không dùng được kênh cục bộ này; dùng mã/QR trong phần bên dưới.
+
+Nếu mở nhiều tab bài chiếu độc lập, trang kịch bản giữ máy chiếu đã bắt cặp đầu tiên; tab chiếu mới không tự giành quyền. Đóng các tab chiếu không dùng trước buổi trình bày để tránh chọn nhầm. Khi máy chiếu tải lại hoặc mất phản hồi, trang tự tìm lại sau khoảng 5 giây và khởi tạo lại số thứ tự trạng thái. Trang kiểm tra lại trạng thái máy chiếu mỗi 1,5 giây; thông điệp cũ không ghi đè trạng thái mới.
 
 ## Dùng điện thoại điều khiển máy tính
 
