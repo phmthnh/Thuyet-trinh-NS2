@@ -1,77 +1,127 @@
-# Thuyết trình NS-2
+# Mô phỏng mạng với NS-2
 
-- [Bài chiếu](https://phmthnh.github.io/Thuyet-trinh-NS2/)
-- [Kịch bản cho người thuyết trình](https://phmthnh.github.io/Thuyet-trinh-NS2/speaker.html)
+Bài thuyết trình về mô phỏng **mạng có dây và mạng không dây với NS-2**, gồm 28 slide và kịch bản dành cho 5 thành viên. Website hỗ trợ đọc lời thuyết trình, luyện tập theo phần được phân công và đồng bộ slide giữa màn hình chiếu với thiết bị của người nói.
 
-Trang `speaker.html` dùng đúng 28 slide từ `index.html`. Trên điện thoại, slide nằm trên cùng, lời nói cuộn độc lập ở giữa và hai nút lùi/tiến cố định dưới cùng. Preview giữ tỉ lệ và cho cuộn trực tiếp, không thu nhỏ toàn bộ slide dài đến mức khó đọc. Khi đang ghép, vị trí cuộn slide được đồng bộ với máy chiếu. Có thể thu gọn preview để tăng diện tích đọc lời nói.
+**[Mở bài chiếu](https://phmthnh.github.io/Thuyet-trinh-NS2/)** · **[Mở kịch bản thuyết trình](https://phmthnh.github.io/Thuyet-trinh-NS2/speaker.html)**
 
-## Hai màn hình trên cùng máy
+## Nội dung bài thuyết trình
 
-1. Mở `speaker.html`, chọn **⇄ Kết nối → Mở màn hình chiếu trên máy này**.
-2. Kéo cửa sổ bài chiếu sang máy chiếu/màn hình thứ hai. Chọn chế độ mở rộng màn hình (Extend) của Windows.
-3. Nhấn **F** trong cửa sổ bài chiếu để toàn màn hình. Giữ trang kịch bản ở màn hình của người nói.
-4. Chuyển slide từ cửa sổ nào cũng được; cửa sổ còn lại tự theo. Chế độ này dùng BroadcastChannel, hai trang phải cùng trình duyệt, cùng hồ sơ và cùng nguồn URL.
+| Phần | Nội dung chính |
+| --- | --- |
+| Tổng quan | NS-2, kiến trúc C++/OTcl và quy trình mô phỏng |
+| Thiết lập mô phỏng | Bộ lập lịch sự kiện, ghi vết, tô-pô mạng, mô hình lỗi và định tuyến |
+| Giao vận và lưu lượng | TCP/UDP, nguồn sinh lưu lượng và thời gian mô phỏng |
+| Ví dụ minh họa | Kịch bản mạng có dây và mạng không dây ad-hoc |
+| Phân tích kết quả | Đọc trace, dùng AWK, tính thông lượng, mất gói, độ trễ và jitter |
+| Thực hành | So sánh DropTail/RED, điều chỉnh tham số và hướng dẫn demo |
 
-Mở riêng trang gốc `/` và `/speaker.html` trong **cùng trình duyệt, cùng hồ sơ, cùng nguồn URL** sẽ tự đồng bộ, kể cả mở từ hai dấu trang riêng. Trang kịch bản hiện **Hai màn hình** khi đã bắt cặp. Liên kết **Mở bài chiếu ↗** vẫn mở một cặp cửa sổ riêng. Các tab chạy ở trình duyệt/hồ sơ khác hoặc điện thoại không dùng được kênh cục bộ này; dùng mã/QR trong phần bên dưới.
+Repo chứa website thuyết trình và các đoạn mã minh họa trong slide. Các tệp `.tcl`, `.awk`, trace `.tr` và dữ liệu `.nam` chưa được lưu thành tệp riêng trong repo; chưa có trace gốc để kiểm chứng lại các bảng kết quả trong bài.
 
-Nếu mở nhiều tab bài chiếu độc lập, trang kịch bản giữ máy chiếu đã bắt cặp đầu tiên; tab chiếu mới không tự giành quyền. Đóng các tab chiếu không dùng trước buổi trình bày để tránh chọn nhầm. Khi máy chiếu tải lại hoặc mất phản hồi, trang tự tìm lại sau khoảng 5 giây và khởi tạo lại số thứ tự trạng thái. Trang kiểm tra lại trạng thái máy chiếu mỗi 1,5 giây; thông điệp cũ không ghi đè trạng thái mới.
+## Tính năng
 
-## Dùng điện thoại điều khiển máy tính
+- **Trình chiếu:** điều hướng bằng bàn phím, nút bấm hoặc vuốt ngang; mở toàn màn hình và liên kết đến từng slide.
+- **Đọc kịch bản:** xem slide cùng lời nói, gợi ý và câu chuyển tiếp; chỉnh cỡ chữ, phóng to hoặc thu gọn phần xem trước trên điện thoại.
+- **Luyện tập theo thành viên:** lọc phần phụ trách, mở mục lục hoặc nhảy trực tiếp đến slide.
+- **Chỉnh lời nói:** soạn nội dung và lưu trên trình duyệt; xuất TXT, nhập/xuất bản nháp JSON để chuyển sang thiết bị khác.
+- **Đồng bộ trình chiếu:** dùng hai cửa sổ trên cùng máy hoặc ghép điện thoại bằng QR/mã phòng, với quyền xem và điều khiển riêng.
 
-1. Trên máy tính, mở bài chiếu chính tại `https://phmthnh.github.io/Thuyet-trinh-NS2/`, bấm **⇄ → Tạo phòng · Hiện QR**.
-2. Quét QR bằng camera điện thoại hoặc mở `speaker.html`, chọn **⇄ Kết nối**, nhập mã phòng **6 số**. Có thể dán toàn bộ liên kết ghép.
-3. Đặt tên thiết bị, bấm **Gửi yêu cầu kết nối**. Trên máy chiếu, đối chiếu tên và mã xác nhận 4 số với điện thoại, rồi chọn **Chấp nhận điều khiển** hoặc **Chỉ cho xem**. Chỉ bắt đầu trình bày khi điện thoại báo đã xác nhận slide.
-4. Đóng hộp kết nối trên hai thiết bị. Điện thoại hiển thị slide và lời nói; máy tính chỉ chiếu bài thuyết trình. Chuyển trang từ điện thoại hoặc bàn phím máy tính đều đồng bộ hai chiều.
-5. Giữ trang máy tính mở. Trong danh sách thiết bị, có thể đổi quyền, ngắt thiết bị hoặc **Khóa nhận thiết bị mới**. Tối đa 5 thiết bị đã duyệt và 3 yêu cầu chờ; yêu cầu chưa duyệt hết hạn sau 60 giây. Chỉ thiết bị có quyền điều khiển mới được gửi lệnh; các thiết bị đã duyệt cùng nhận slide mới.
-6. Điện thoại tự thử nối lại tối đa 3 lần khi kênh bị đóng; khi trở lại trang sau khóa màn hình, gửi yêu cầu đồng bộ lại. Có nút **Kết nối lại** và trạng thái xác nhận lệnh ngay trên trang đọc. Tải lại điện thoại vẫn dùng token riêng của phiên và khôi phục quyền đã được duyệt khi bấm ghép lại. Ngắt thiết bị thu hồi token; lần ghép tiếp theo cần chủ máy chấp nhận lại. Đóng phòng hoặc tải lại máy chiếu xóa mọi quyền cũ.
+## Bắt đầu sử dụng
 
-GitHub Pages chỉ phục vụ các tệp tĩnh. Kết nối giữa hai thiết bị dùng PeerJS 1.5.5 với PeerJS Cloud để tìm nhau, WebRTC để gửi số slide/vị trí cuộn và qrcode-generator 1.4.4 để tạo QR tại trình duyệt (các thư viện/giấy phép MIT trong `vendor/`). Không gửi kịch bản hay bản nháp qua kênh điều khiển, không dùng camera/micro của trang. Thư viện kết nối chỉ tải khi tạo/ghép phòng; quét QR dùng ứng dụng camera sẵn có.
+Mở **bài chiếu** để trình bày trước lớp, hoặc mở **kịch bản thuyết trình** để luyện tập và đọc lời nói. Bật JavaScript trên trình duyệt để sử dụng các chức năng này.
 
-Cần Internet. Mạng chặn WebRTC hoặc NAT hạn chế có thể khiến ghép thất bại; các STUN/TURN công cộng mặc định không bảo đảm hoạt động trên mọi mạng. Xem **Kiểm tra mạng / TURN tùy chọn** để đọc lỗi, thử cùng Wi-Fi/điểm phát sóng, hoặc nhập URL/username/credential TURN riêng trên hai thiết bị rồi ghép lại. Thông tin TURN chỉ lưu trong `sessionStorage` của tab, không đưa vào repo; không nhập khóa quản trị của dịch vụ TURN. Không coi kênh đã mở là đồng bộ thành công: trang cần nhận đúng trạng thái và xác nhận lệnh từ máy chiếu. Nếu chưa có TURN phù hợp, không cam kết kết nối được trên mọi mạng 4G/5G hoặc mạng trường học.
+### Điều khiển bài chiếu
 
-Mã phòng 6 số chỉ giúp tìm phòng, không cấp quyền điều khiển. Mỗi phiên thiết bị dùng token ngẫu nhiên 128 bit được gửi trên kênh WebRTC mã hóa, và chỉ được duyệt tại máy chiếu. Chủ máy phải đối chiếu mã xác nhận/tên trước khi chấp nhận; không tự duyệt thiết bị lạ. Phòng giới hạn 20 yêu cầu kết nối/phút và số thiết bị chờ để giảm làm phiền, nhưng không thay thế hệ thống đăng nhập hay chống DDoS của máy chủ. Trang được phục vụ qua HTTPS trên Pages; không dùng đường dẫn HTML cũ đã xóa. Liên kết phòng 20 ký tự của bản trước không tương thích; tạo QR/mã mới và tải lại trang trên cả hai máy.
+| Phím / thao tác | Chức năng |
+| --- | --- |
+| `→`, `PageDown`, `Space` | Sang slide tiếp theo |
+| `←`, `PageUp` | Quay lại slide trước |
+| `Home` / `End` | Đến slide đầu / cuối |
+| `F` | Bật / tắt toàn màn hình |
+| Vuốt ngang hoặc bấm `‹` / `›` | Chuyển slide |
 
-## Phân công
+Có thể mở thẳng một slide bằng liên kết có số ở cuối, ví dụ: [slide 14](https://phmthnh.github.io/Thuyet-trinh-NS2/#14). Với slide dài, cuộn bên trong slide để xem hết nội dung.
 
-| Thành viên | Phần lý thuyết theo phân công | Slide phụ trách | Thời gian lời nói gợi ý |
-| --- | --- | --- | --- |
-| Long | 4.4.1: bộ lập lịch; mở đầu và tổng kết | 1–6, 27–28 | 10 phút 55 giây |
-| Minh | 4.4.2: ghi vết; chạy và phân tích trace | 7, 18–21 | 8 phút 55 giây |
-| Bảo | 4.4.3: mô hình mạng; ví dụ có dây | 8–10, 14–15 | 8 phút 25 giây |
-| Thành | 4.4.4: TCP/UDP; ví dụ không dây và demo | 11, 16–17, 26 | 6 phút 45 giây |
-| Đạt | 4.4.5–4.4.6: nguồn lưu lượng, thời gian; kết quả và cải tiến | 12–13, 22–25 | 10 phút 45 giây |
+Trên trang kịch bản, dùng **Lùi / Tiến**, **Đến slide** hoặc **Mục lục**. Chọn tên ở **Phần của** để tập riêng phần mình; chọn **Tất cả** để đi theo thứ tự toàn bài. Khi nhận lệnh từ máy chiếu hoặc nhảy bằng **Đến slide**, trang chuyển về chế độ tất cả.
 
-Tổng khoảng 45 phút 45 giây cho bản chi tiết; cộng thêm thời gian chạy demo và hỏi đáp. Ước tính theo khoảng 210 đơn vị cách nhau bằng dấu cách/phút, làm tròn từng slide lên 5 giây; chưa phải kết quả bấm giờ. Các số mục 4.4.1–4.4.6 được ghép theo sáu bước trong bài hiện có và thứ tự phân công của nhóm; repo không chứa giáo trình để đối chiếu tên từng mục.
+### Trình bày với hai màn hình trên cùng máy
 
-Chọn **Phần của** để tập riêng phần một người. Chọn **Tất cả** để giữ thứ tự bài chiếu. Thanh **Đến slide** luôn hiện trên trang điều khiển; bấm số slide giữa hai nút lùi/tiến để nhập số trực tiếp. Nút **Mục lục** mở danh sách kèm phân công. Khi nhận lệnh từ máy chiếu hoặc nhảy trực tiếp, bộ lọc chuyển về tất cả để không bỏ qua slide.
+1. Mở trang kịch bản, chọn **⇄ Kết nối → Mở màn hình chiếu trên máy này ↗**.
+2. Chọn chế độ **Extend** của Windows, rồi kéo cửa sổ bài chiếu sang màn hình thứ hai hoặc máy chiếu.
+3. Nhấn **F** trong cửa sổ bài chiếu; giữ trang kịch bản ở màn hình của người nói.
+4. Chuyển slide từ một trong hai cửa sổ để cửa sổ còn lại đồng bộ theo.
 
-## Sửa kịch bản
+Hai trang cần cùng trình duyệt, cùng hồ sơ và cùng nguồn URL để đồng bộ qua `BroadcastChannel`. Mở riêng bài chiếu và trang kịch bản từ hai dấu trang cũng hỗ trợ tự ghép. Nên đóng các tab bài chiếu không dùng để tránh bắt cặp nhầm.
 
-Nút **Sửa** mở trình soạn lời nói, gợi ý khi trình bày và câu chuyển tiếp. Chọn chữ rồi dùng **B**, **I**, **Danh sách** để chèn định dạng đơn giản; có hoàn tác/làm lại, đếm từ và xem trước. Định dạng hỗ trợ `**in đậm**`, `*in nghiêng*`, dấu backtick cho code và các dòng bắt đầu bằng `- ` cho danh sách. Nội dung được hiển thị như văn bản an toàn, không thực thi HTML người dùng nhập.
+### Dùng điện thoại điều khiển máy chiếu
 
-**Lưu nội dung** lưu riêng trên trình duyệt. **Xuất bản nháp JSON** xuất cả nội dung vừa chỉnh và các slide đã lưu; chuyển file này sang máy khác rồi **Nhập bản nháp JSON** để dùng tiếp. Nhập bản nháp gộp với nội dung đã có, các slide trùng số dùng dữ liệu nhập. Xuất TXT trong mục lục lấy lời nói/gợi ý/câu chuyển tiếp đã sửa. Chỉnh sửa không tự ghi vào GitHub hoặc đồng bộ sang thiết bị khác; muốn chia sẻ cần chuyển file JSON.
+1. Trên máy tính, mở bài chiếu và chọn **⇄ → Tạo phòng · Hiện QR**.
+2. Trên điện thoại, quét QR hoặc mở trang kịch bản, chọn **⇄ Kết nối** và nhập mã phòng **6 số**. Có thể dán toàn bộ liên kết ghép.
+3. Đặt tên thiết bị, chọn **Gửi yêu cầu kết nối**.
+4. Trên máy chiếu, đối chiếu tên thiết bị và mã xác nhận **4 số**, rồi chọn **Chấp nhận điều khiển** hoặc **Chỉ cho xem**.
+5. Khi điện thoại xác nhận đã nhận slide, đóng hộp kết nối và bắt đầu trình bày. Giữ trang máy chiếu mở trong suốt buổi.
 
-## Xem tại máy
+Slide và vị trí cuộn được đồng bộ giữa các thiết bị đã duyệt. Chủ phòng có thể đổi quyền, ngắt thiết bị hoặc **Khóa nhận thiết bị mới**; phòng hỗ trợ tối đa 5 thiết bị đã duyệt và 3 yêu cầu chờ. Yêu cầu chưa duyệt hết hạn sau 60 giây.
 
-Trong thư mục repo, chạy:
+Kết nối điện thoại cần Internet và sử dụng PeerJS/WebRTC. Nếu ghép thất bại, mở **Kiểm tra mạng / TURN tùy chọn**, thử cùng Wi-Fi hoặc điểm phát sóng; có thể nhập cấu hình TURN riêng trên hai thiết bị rồi ghép lại. Kết nối phụ thuộc điều kiện mạng, đặc biệt khi WebRTC bị chặn hoặc NAT hạn chế. Cấu hình TURN chỉ lưu trong `sessionStorage` của tab.
+
+Mã phòng giúp tìm phòng; quyền xem hoặc điều khiển được cấp tại máy chiếu. Đóng phòng hoặc tải lại máy chiếu sẽ xóa các quyền đã cấp, nên cần ghép và duyệt lại.
+
+## Phân công nhóm
+
+| Thành viên | Nội dung phụ trách | Slide |
+| --- | --- | --- |
+| Long | Bộ lập lịch sự kiện; mở đầu, tổng kết và hỏi đáp | 1–6, 27–28 |
+| Minh | Ghi vết sự kiện; chạy mô phỏng, đọc trace và phân tích AWK | 7, 18–21 |
+| Bảo | Tô-pô, mô hình lỗi, định tuyến và ví dụ mạng có dây | 8–10, 14–15 |
+| Thành | TCP/UDP, ví dụ mạng không dây và hướng dẫn demo | 11, 16–17, 26 |
+| Đạt | Nguồn lưu lượng, thời gian mô phỏng, chỉ số và cải tiến hiệu năng | 12–13, 22–25 |
+
+Thời lượng gợi ý của kịch bản hiện tại là khoảng **45 phút 45 giây**, chưa gồm thời gian chạy demo và hỏi đáp. Đây là ước tính để luyện tập, chưa phải thời gian trình bày được bấm giờ. Các mục 4.4.1–4.4.6 trên trang kịch bản được ghép theo nội dung và phân công hiện có; repo chưa chứa giáo trình để đối chiếu.
+
+## Chỉnh sửa và chia sẻ kịch bản
+
+Trên trang kịch bản, chọn **Sửa** để chỉnh lời nói, gợi ý và câu chuyển tiếp của slide hiện tại. Trình soạn hỗ trợ in đậm, in nghiêng, danh sách, hoàn tác/làm lại, đếm từ và xem trước.
+
+| Thao tác | Kết quả |
+| --- | --- |
+| **Lưu nội dung** | Lưu bản chỉnh sửa trong trình duyệt đang dùng |
+| **Xuất bản nháp JSON** | Tải bản nháp để sao lưu hoặc chuyển sang thiết bị khác |
+| **Nhập bản nháp JSON** | Gộp bản nháp vào dữ liệu hiện có; slide trùng số dùng nội dung nhập |
+| **Tải toàn bộ kịch bản (.txt)** | Xuất lời nói, gợi ý và câu chuyển tiếp, bao gồm nội dung đã chỉnh |
+| **Dùng lời gốc** | Khôi phục nội dung gốc của slide đang sửa |
+
+Nội dung chỉnh trên trình duyệt không tự ghi vào GitHub hoặc đồng bộ sang thiết bị khác. Hãy xuất JSON trước khi xóa dữ liệu trình duyệt hay chuyển máy. Sau khi lời gốc trong repo được cập nhật, dùng **Sửa → Dùng lời gốc** ở từng slide nếu muốn thay bản chỉnh riêng bằng nội dung mới.
+
+## Chạy tại máy
+
+Cần Git để tải repo và Python 3 để mở máy chủ tĩnh. Không có bước cài npm hay build website; không cần cài NS-2 để xem bài chiếu.
 
 ```powershell
+git clone https://github.com/phmthnh/Thuyet-trinh-NS2.git
+cd Thuyet-trinh-NS2
 python -m http.server 8766 --bind 127.0.0.1
 ```
 
-Mở `http://127.0.0.1:8766/speaker.html`. Trang cần được phục vụ qua HTTP để tải bài chiếu gốc; mở trực tiếp bằng `file://` sẽ hiện hướng dẫn này. Không cần API key, tài khoản AI hoặc thư viện bên ngoài.
+- Bài chiếu: [http://127.0.0.1:8766/](http://127.0.0.1:8766/)
+- Kịch bản: [http://127.0.0.1:8766/speaker.html](http://127.0.0.1:8766/speaker.html)
 
-## Nội dung và bảo trì
+Giữ terminal mở khi sử dụng; nhấn `Ctrl+C` để dừng máy chủ. Mở qua HTTP để trang kịch bản tải được nội dung từ `index.html`; tránh mở trực tiếp bằng `file://`. Địa chỉ `127.0.0.1` chỉ truy cập trên máy đang chạy; khi ghép điện thoại, dùng các liên kết GitHub Pages ở đầu README.
 
-- `index.html`: nội dung bài chiếu gốc, bổ sung đường dẫn kịch bản và kết nối.
-- `speaker.html`, `speaker.css`, `speaker.js`: giao diện đọc và luyện tập.
-- `speaker-notes.js`: 28 mục gồm người nói, phần phụ trách, lời nói chi tiết, gợi ý và câu chuyển tiếp.
-- `sync.js`: kết nối hai cửa sổ và ghép điện thoại; `vendor/` chứa PeerJS cùng giấy phép.
+## Cấu trúc dự án
 
-Khi đổi số lượng/thứ tự/nội dung slide, cập nhật lời nói tương ứng. Trang kiểm tra số lượng slide để tránh trình bày nhầm sau khi thêm hoặc xóa slide. Chỉ số gói, độ trễ và thông lượng trong kịch bản được diễn giải theo bảng đang có; repo không có trace gốc để xác minh lại thí nghiệm.
+```text
+Thuyet-trinh-NS2/
+├── index.html          # 28 slide và điều hướng bài chiếu
+├── speaker.html        # Giao diện dành cho người thuyết trình
+├── speaker.css         # Định dạng trang kịch bản trên máy tính/điện thoại
+├── speaker.js          # Đọc, chỉnh sửa, nhập/xuất và điều hướng kịch bản
+├── speaker-notes.js    # Lời nói, phân công, gợi ý và câu chuyển tiếp
+├── sync.js             # Đồng bộ cửa sổ và ghép thiết bị qua WebRTC
+├── vendor/             # PeerJS 1.5.5, qrcode-generator 1.4.4 và giấy phép
+├── .github/CODEOWNERS  # Chủ sở hữu mã nguồn
+└── README.md
+```
 
-Kịch bản bổ sung lưu ý cho các điểm dễ nhầm trong bài: cú pháp bộ lập lịch, định tuyến Static mặc định, trường AGT trong trace, thời gian hội tụ, cách đếm PDR và phân biệt phần trăm với điểm phần trăm. Tham khảo [NS-2 Manual](https://www.isi.edu/websites/nsnam/ns/ns-man.html), [Scheduler](https://www.isi.edu/websites/nsnam/ns/doc-stable/node31.html), [Trace](https://www.isi.edu/websites/nsnam/ns/doc/node296.html) và [RFC 3550](https://www.rfc-editor.org/rfc/rfc3550.html).
+Website dùng HTML, CSS và JavaScript thuần. Thư viện PeerJS và tạo QR được lưu trong `vendor/`, chỉ tải khi tạo hoặc ghép phòng; giấy phép MIT của từng thư viện nằm cùng thư mục.
 
-Nhánh `main` được bảo vệ: thay đổi qua pull request, chỉ `phmthnh` được merge, không cần chờ người khác review. Không tắt quy tắc để xuất bản trang kịch bản.
-
-Bản mở rộng ngày 19/10/2026 bổ sung ví dụ tính toán và giải thích cơ chế cho đủ 28 slide. Ví dụ tự đặt được ghi rõ là minh họa, không phải kết quả đo của nhóm. Nếu trình duyệt đang dùng lời đã chỉnh, hãy xuất bản nháp JSON để giữ lại, rồi chọn **Sửa → Dùng lời gốc** ở slide cần cập nhật để xem nội dung mới.
+Để cập nhật bài, sửa slide trong `index.html` và lời nói tương ứng trong `speaker-notes.js`. Giữ số lượng, thứ tự và nội dung hai phần khớp nhau; trang kịch bản kiểm tra số lượng slide khi tải. Nếu thay tổng số slide, cập nhật cả giới hạn trong `speaker.html` và `sync.js`.
